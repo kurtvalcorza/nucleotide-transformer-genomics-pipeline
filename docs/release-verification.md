@@ -70,7 +70,7 @@ Kept here so that whoever resolves the gates does not have to reconstruct it:
 
 | Notebook | Commit / notebook blob | Date (UTC) | Executor | Outcome |
 |---|---|---|---|---|
-| `nucleotide_transformer_colab.ipynb` | `__LOCAL_ROW__` | 2026-09-18 | Local pre-flight harness (Windows, CPython 3.12, CPU, pins pre-installed) | PASS — pre-flight only, **not** promotion evidence |
+| `nucleotide_transformer_colab.ipynb` | `6d04a3d` / `9f67399f7bcf` | 2026-09-18 | Local pre-flight harness (Windows, CPython 3.12, CPU, pins pre-installed) | PASS — pre-flight only, **not** promotion evidence |
 
 ## Recorded executions
 
@@ -79,7 +79,7 @@ Notebook identity is the Git blob id of `tutorials/nucleotide_transformer_colab.
 
 | Date (UTC) | Commit / notebook blob | Executor | Path exercised | Wall | Outcome |
 |---|---|---|---|---|---|
-| 2026-09-18 | `__LOCAL_ROW__` | Local pre-flight harness (Windows, CPython 3.12, CPU float32) | Default path (verify → load → tokenize → embed → probe → masked-LM → export) | __LOCAL_WALL__ | **PASSED** — pre-flight; see the gates above before reading this as readiness |
+| 2026-09-18 | `6d04a3d` / `9f67399f7bcf` | Local pre-flight harness (Windows, CPython 3.12, CPU float32) | Default path (verify → load → tokenize → embed → probe → masked-LM → export) | 33.2 s | **PASSED** — pre-flight; see the gates above before reading this as readiness |
 
 ## Current status
 
