@@ -56,7 +56,7 @@ These are source checks. They are not clean-runtime execution evidence; see `doc
 
 ## Release status
 
-**Hold.** The notebook has one recorded local CPU execution of its committed blob, and the static checks pass, but the row is blocked on the licence and remote-code decisions above rather than on engineering. No DIMER profile is planned until both are resolved.
+**Hold.** The exact committed notebook blob passed its full default path in a clean Kaggle Tesla T4 runtime, and the static checks pass, but the row is blocked on the licence and remote-code decisions above rather than on engineering. No DIMER profile is planned until both are resolved.
 
 ## Licensing
 

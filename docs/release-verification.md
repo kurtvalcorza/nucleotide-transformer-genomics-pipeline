@@ -1,10 +1,10 @@
 # Release verification
 
-`tutorials/nucleotide_transformer_colab.ipynb` (`TASK-INFERENCE`, **standalone** carrier) has one recorded
-local CPU execution and no hosted clean-runtime run. More importantly, this row is **not on a release path at
-all**: it is on HOLD behind two decisions — the upstream non-commercial licence and the remote-code
-requirement — recorded in `MODEL_CARD.md` → *DIMER deployment notes*. Execution evidence is necessary for a
-release but is nowhere near sufficient here, and this file does not pretend otherwise.
+`tutorials/nucleotide_transformer_colab.ipynb` (`TASK-INFERENCE`, **standalone** carrier) has recorded local
+CPU and clean Kaggle Tesla T4 executions of the exact notebook blob. More importantly, this row is **not on a
+release path at all**: it is on HOLD behind two decisions — the upstream non-commercial licence and the
+remote-code requirement — recorded in `MODEL_CARD.md` → *DIMER deployment notes*. Execution evidence is
+necessary for a release but is nowhere near sufficient here, and this file does not pretend otherwise.
 
 Static checks, JSON validation and code-cell compilation are **not** runtime evidence under DIMER Notebook
 Specification 2.0 (REL8).
@@ -70,6 +70,7 @@ Kept here so that whoever resolves the gates does not have to reconstruct it:
 
 | Notebook | Commit / notebook blob | Date (UTC) | Executor | Outcome |
 |---|---|---|---|---|
+| `nucleotide_transformer_colab.ipynb` | `f9dc86f` / `9f67399f7bcf` | 2026-09-18 | Kaggle batch kernel `dimer-nb2-nucleotide-transformer` v1 (Python 3.12.13, Tesla T4, empty Hugging Face cache, no repository checkout) | **PASS** — 9/9 code cells after the expected fresh-process restart following dependency installation; technical clean-runtime evidence only, with licence and remote-code gates unchanged |
 | `nucleotide_transformer_colab.ipynb` | `6d04a3d` / `9f67399f7bcf` | 2026-09-18 | Local pre-flight harness (Windows, CPython 3.12, CPU, pins pre-installed) | PASS — pre-flight only, **not** promotion evidence |
 
 ## Recorded executions
@@ -79,11 +80,12 @@ Notebook identity is the Git blob id of `tutorials/nucleotide_transformer_colab.
 
 | Date (UTC) | Commit / notebook blob | Executor | Path exercised | Wall | Outcome |
 |---|---|---|---|---|---|
+| 2026-09-18 | `f9dc86f` / `9f67399f7bcf` | Kaggle batch kernel `dimer-nb2-nucleotide-transformer` v1 (Python 3.12.13, Tesla T4, clean cache) | Default path (download and verify 8 model files → load pinned remote code → tokenize → embed → probe → masked-LM → export) | 218.6 s | **PASSED** — 9/9 code cells; nearest-centroid probe accuracy 0.9583 (n=24 test) against majority 0.5 and GC-threshold 0.375. One expected fresh-process restart followed the install cell. Technical execution does not clear the CC BY-NC-SA 4.0 or remote-code gates. |
 | 2026-09-18 | `6d04a3d` / `9f67399f7bcf` | Local pre-flight harness (Windows, CPython 3.12, CPU float32) | Default path (verify → load → tokenize → embed → probe → masked-LM → export) | 33.2 s | **PASSED** — pre-flight; see the gates above before reading this as readiness |
 
 ## Current status
 
-The notebook source is complete, the static checks pass, and one local pre-flight execution of the committed
-blob completed the whole default path. The repository stays at **Hold**: the blocking questions are the
-CC BY-NC-SA 4.0 licence and the remote-code requirement, not engineering, and neither is resolved by running
-the notebook again.
+The exact notebook blob passed the complete default path in a clean Kaggle Tesla T4 runtime with an empty Hugging Face
+cache and no repository checkout. The repository nevertheless stays at **Hold**: the blocking questions are the
+CC BY-NC-SA 4.0 licence and the remote-code requirement, not engineering, and neither is resolved by this successful
+execution.
