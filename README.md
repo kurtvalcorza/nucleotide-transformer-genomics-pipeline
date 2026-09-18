@@ -28,7 +28,7 @@ The repository narrows the second gate as far as it can: `modeling_esm.py` and `
 
 The sample is built so that the evaluation means something: the two classes contain **exactly the same multiset of bases** — identical GC content, identical length — and differ only in whether a fixed 6-mer motif is present or its letters are permuted. A composition baseline therefore cannot separate them, which is what makes the embedding probe's result informative.
 
-Recorded CPU run (2026-09-18, weights already staged): 8 files verified in 0.1 s, model load 0.4 s, 48 sequences embedded in 0.7 s, probe accuracy **1.0** on 24 held-out sequences with a mean cosine margin of ±0.0036, against a majority baseline of 0.5 and a GC baseline of **0.4167**. Tutorial sample-sanity evidence on synthetic sequence — not a genomics benchmark.
+Recorded CPU run of the committed notebook (2026-09-18, weights already staged): 9/9 cells in 33.2 s, 8 files verified, 48 sequences embedded to 512 dimensions in 0.7 s, probe accuracy **0.9583** (23 of 24 held-out sequences) with a mean cosine margin of 0.0037, against a majority baseline of 0.5 and a GC baseline of **0.375**. Tutorial sample-sanity evidence on synthetic sequence — not a genomics benchmark, and the margin is small enough to read the separation as detectable rather than robust.
 
 ## Layout
 
@@ -56,7 +56,7 @@ These are source checks. They are not clean-runtime execution evidence; see `doc
 
 ## Release status
 
-**Hold.** The notebook has one recorded local CPU execution of its committed blob, and the static checks pass, but the row is blocked on the licence and remote-code decisions above rather than on engineering. No DIMER profile is planned until both are resolved.
+**Hold.** The exact committed notebook blob passed its full default path in a clean Kaggle Tesla T4 runtime, and the static checks pass, but the row is blocked on the licence and remote-code decisions above rather than on engineering. No DIMER profile is planned until both are resolved.
 
 ## Licensing
 
