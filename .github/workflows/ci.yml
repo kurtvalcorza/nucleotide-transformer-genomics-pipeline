@@ -1,0 +1,37 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install lint tooling
+        run: python -m pip install --upgrade pip && python -m pip install ruff==0.16.6
+      - name: Lint
+        run: ruff check tools
+      - name: Notebook emitter parity
+        run: python tools/make_notebook.py --check
+      - name: Source asset checks
+        run: python tools/check_assets.py
+
+  gates:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: State the open gates
+        run: |
+          echo "This row is on HOLD: the upstream weights are CC BY-NC-SA 4.0 (non-commercial),"
+          echo "and the checkpoint requires trust_remote_code=True to load."
+          echo "Static checks are not clean-runtime evidence, and a clean run would not clear either gate."
+          echo "See MODEL_CARD.md (DIMER deployment notes) and docs/release-verification.md."
