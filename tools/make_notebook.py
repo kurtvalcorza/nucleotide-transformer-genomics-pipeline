@@ -182,7 +182,7 @@ def build() -> dict[str, Any]:
             f"{pins_literal}\n"
             "NOTEBOOK_SOURCE = {\n"
             "    'repository': 'nucleotide-transformer-genomics-pipeline',\n"
-            "    'repository_revision': '__REPO_REVISION__',\n"
+            "    'repository_revision': '062e7a43fe01bbb3b8856d6cdd296e6bacfcd88d',\n"
             f"    'generator': {GENERATOR!r},\n"
             f"    'notebook_spec': {NOTEBOOK_SPEC!r},\n"
             f"    'notebook_profile': {PROFILE!r},\n"
