@@ -86,7 +86,7 @@ python tools/validate_release_assets.py
 python tools/build_notebook.py --check
 ```
 
-`pytest` runs 46 tests: the offline contract tests always, the model-backed tests only where the snapshot is staged under `weights/nt-v2-50m-multi-species/` (and the CUDA test only where a device is visible). `python tools/pin_sample.py` (network) re-derives the inline sample from the origin and asserts its digest.
+`pytest` runs 51 tests: the offline contract tests always, the model-backed tests only where the snapshot is staged under `weights/nt-v2-50m-multi-species/` (and the CUDA test only where a device is visible). `python tools/pin_sample.py` (network) re-derives the inline sample from the origin and asserts its digest.
 
 ## Layout
 

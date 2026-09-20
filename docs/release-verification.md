@@ -146,12 +146,12 @@ stated runtime, not general estimates.
 |---|---|---|---|---|---|
 | 2026-09-20 | package API at the candidate revision (not the notebook) | Windows fleet venv, Python 3.12.10, torch 2.14.0+cu130, transformers 4.57.6, RTX 5070 Ti (`cuda:0`), snapshot pre-staged | Package-API build record on the pinned sample: `sample_dataset` → baselines → `linear_probe` → `adapt` (defaults) → `evaluate` → `save_artifact` → `from_artifact` parity | load 7.9 s, probe 3.1 s, adapt 33.9 s | PASS — majority 0.5 / 0.0; GC 0.715 / 0.4308 (threshold 0.5598); frozen probe 0.815 / 0.6315; adapted **0.8425 / 0.6934** (epoch 2 kept; tp 153, tn 184, fp 16, fn 47); artifact 34,645,456 B / 32 tensors; parity 64/64 labels, max probability difference 0.0; 558 MiB peak. Pre-flight, not promotion evidence. |
 | 2026-09-20 | package API at the candidate revision (not the notebook) | same venv, CPU (`cpu`) | Same path | load 4.5 s, probe 19.4 s, adapt 212.9 s | PASS — every metric identical to the GPU row to four decimals; artifact 34,645,456 B; parity exact. Pre-flight, not promotion evidence. |
-| 2026-09-20 | `tests/` at the candidate revision | same venv (CPU and `cuda:0`) | `pytest`: 46 offline, model-backed and parity tests | — | 46 passed; `ruff` clean; `validate_release_assets.py` PASS; `build_notebook.py --check` clean. Static, not runtime evidence. |
+| 2026-09-20 | `tests/` at the candidate revision | same venv (CPU and `cuda:0`) | `pytest`: 51 offline, model-backed and parity tests | — | 51 passed; `ruff` clean; `validate_release_assets.py` PASS; `build_notebook.py --check` clean. Static, not runtime evidence. |
 | 2026-09-18 | `f9dc86f` / `9f67399f7bcf` (`TASK-INFERENCE`, superseded) | Kaggle Tesla T4, clean runtime | Default path of the earlier representation-only notebook | 218.6 s | PASS — 9/9 code cells; not evidence for the `E2E` blob |
 
 ## Current status
 
-**Candidate.** The package, its 46 tests, the fleet generator parity and the release-asset validation are in place,
+**Candidate.** The package, its 51 tests, the fleet generator parity and the release-asset validation are in place,
 and the package-API build record on GPU and CPU establishes that the default path's numbers hold on the pinned
 sample. What is missing is the one thing this file gates on: the exact committed `E2E` notebook blob executing
 top-to-bottom in a clean supported runtime with no repository checkout and an empty Hugging Face cache. When that
