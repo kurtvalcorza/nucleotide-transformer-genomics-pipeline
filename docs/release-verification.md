@@ -132,7 +132,7 @@ A known-failing default path in the supported runtime blocks release (REL11).
 
 | Notebook | Commit / notebook blob | Date (UTC) | Executor | Outcome |
 |---|---|---|---|---|
-| `nucleotide_transformer_colab.ipynb` (`E2E`) | — | — | — | **Not yet executed in a clean runtime.** The row is `Candidate` until this table has a passing row for the exact committed blob. |
+| `nucleotide_transformer_colab.ipynb` (`E2E`) | `3e37b6c` / `c1aa7361` | 2026-09-20 | Kaggle Tesla T4 (`kurtvalcorza/dimer-nb2-nucleotide-transformer` v2; image `torch 2.10.0+cu128` / `transformers 5.0.0` / `numpy 2.0.2` before the pinned install, `torch 2.14.0+cu130` / `transformers 4.57.6` / `numpy 2.5.3` after, Python 3.12.13, `cuda:0`, driver 580.159.04) | **PASSED** — 11/11 code cells ok (1 restart after the install cell, as the stale-import guard is designed to force); 18 files / 224 MB staged from the Hub into a clean cache, all 8 manifest entries fetched and digest-verified, `remote_code.verified_before_import` true; comparison accuracy {majority 0.5, gc_threshold 0.715, frozen_probe 0.815, adapted **0.8425**} / MCC {0.0, 0.4308, 0.6315, **0.6934**}; validation curve 0.505/0.071 → 0.795/0.609, 0.805/0.621 (epoch 2 kept), 0.795/0.606, 0.78/0.577, 0.765/0.533, 0.80/0.612; adapt 32.1 s; confusion tp 153 / tn 184 / fp 16 / fn 47; adapter 34,645,456 B / 32 tensors, licence `cc-by-nc-sa-4.0`; reload parity 64/64 labels, max probability difference 0.0 — every figure identical to the RTX 5070 Ti and CPU build records to four decimals |
 | `nucleotide_transformer_colab.ipynb` (`TASK-INFERENCE`, superseded) | `f9dc86f` / `9f67399f7bcf` | 2026-09-18 | Kaggle Tesla T4 (clean runtime, empty Hugging Face cache, no repository checkout) | PASS — 9/9 code cells, 218.6 s; all 8 files downloaded and digest-verified including the two Python files before the remote-code import; nearest-centroid probe 0.9583 (n = 24) against majority 0.5 and GC 0.375. Evidence for the earlier representation-only notebook, not for the `E2E` blob. |
 
 ## Recorded executions
@@ -144,6 +144,7 @@ stated runtime, not general estimates.
 
 | Date (UTC) | Commit / notebook blob | Executor | Path exercised | Wall | Outcome |
 |---|---|---|---|---|---|
+| 2026-09-20 | `3e37b6c` / `c1aa7361` | Kaggle Tesla T4 (`kurtvalcorza/dimer-nb2-nucleotide-transformer` v2; image `torch 2.10.0+cu128` / `transformers 5.0.0` / `numpy 2.0.2` before the pinned install, `torch 2.14.0+cu130` / `transformers 4.57.6` / `numpy 2.5.3` after, Python 3.12.13, `cuda:0`, driver 580.159.04) | Default sample path, `Run all` from a fresh interpreter with an empty Hugging Face cache and no repository checkout (blob SHA-1 verified against GitHub before execution; executor `.agent/scripts/kaggle-serial-test-suite.py`, fresh-subprocess `nbclient`) | 248.3 s (163.2 s install + restart, 85.0 s for the whole default path) | **PASSED** — 11/11 code cells ok (1 restart after the install cell, as the stale-import guard is designed to force); 18 files / 224 MB staged from the Hub into a clean cache, all 8 manifest entries fetched and digest-verified, `remote_code.verified_before_import` true; comparison accuracy {majority 0.5, gc_threshold 0.715, frozen_probe 0.815, adapted **0.8425**} / MCC {0.0, 0.4308, 0.6315, **0.6934**}; validation curve 0.505/0.071 → 0.795/0.609, 0.805/0.621 (epoch 2 kept), 0.795/0.606, 0.78/0.577, 0.765/0.533, 0.80/0.612; adapt 32.1 s; confusion tp 153 / tn 184 / fp 16 / fn 47; adapter 34,645,456 B / 32 tensors, licence `cc-by-nc-sa-4.0`; reload parity 64/64 labels, max probability difference 0.0 — every figure identical to the RTX 5070 Ti and CPU build records to four decimals |
 | 2026-09-20 | package API at the candidate revision (not the notebook) | Windows fleet venv, Python 3.12.10, torch 2.14.0+cu130, transformers 4.57.6, RTX 5070 Ti (`cuda:0`), snapshot pre-staged | Package-API build record on the pinned sample: `sample_dataset` → baselines → `linear_probe` → `adapt` (defaults) → `evaluate` → `save_artifact` → `from_artifact` parity | load 7.9 s, probe 3.1 s, adapt 33.9 s | PASS — majority 0.5 / 0.0; GC 0.715 / 0.4308 (threshold 0.5598); frozen probe 0.815 / 0.6315; adapted **0.8425 / 0.6934** (epoch 2 kept; tp 153, tn 184, fp 16, fn 47); artifact 34,645,456 B / 32 tensors; parity 64/64 labels, max probability difference 0.0; 558 MiB peak. Pre-flight, not promotion evidence. |
 | 2026-09-20 | package API at the candidate revision (not the notebook) | same venv, CPU (`cpu`) | Same path | load 4.5 s, probe 19.4 s, adapt 212.9 s | PASS — every metric identical to the GPU row to four decimals; artifact 34,645,456 B; parity exact. Pre-flight, not promotion evidence. |
 | 2026-09-20 | `tests/` at the candidate revision | same venv (CPU and `cuda:0`) | `pytest`: 51 offline, model-backed and parity tests | — | 51 passed; `ruff` clean; `validate_release_assets.py` PASS; `build_notebook.py --check` clean. Static, not runtime evidence. |
@@ -151,18 +152,19 @@ stated runtime, not general estimates.
 
 ## Current status
 
-**Candidate.** The package, its 51 tests, the fleet generator parity and the release-asset validation are in place,
-and the package-API build record on GPU and CPU establishes that the default path's numbers hold on the pinned
-sample. What is missing is the one thing this file gates on: the exact committed `E2E` notebook blob executing
-top-to-bottom in a clean supported runtime with no repository checkout and an empty Hugging Face cache. When that
-run is recorded above with its blob id, commit, runtime, outcome and observed metrics, the status token here, in
-`STATUS.md`, in `README.md` and in `tutorials/README.md` changes to `Release-grade` together.
+**Release-grade.** The `E2E` notebook blob `c1aa7361` (committed at `3e37b6c`) executed top-to-bottom in a clean Kaggle Tesla T4
+runtime on 2026-09-20 (11/11 ok with 1 restart after the install cell, 248.3 s, 18 files / 224 MB fetched from the Hub and
+digest-verified inside the notebook — the two model-code files before they were imported) with no repository checkout —
+the REL1/REL10 supported-runtime evidence this file gates on. The package-API build records above are what preceded it
+and remain history. Any later change to the carried modules or to the notebook template changes the blob and returns
+the row to `Candidate` until a new clean run is recorded.
 
 Facts a reviewer should weigh: the frozen probe is a strong reference (0.815 / 0.632) because promoter windows are
 GC-rich and the representation already carries composition and more, so the fine-tuning's gain is 0.06 MCC — a few
 times the run-to-run spread observed for the recipe, not a large margin; the 200-window validation split is noisy to
 about ±0.03 MCC and the kept epoch can differ between runs (the build record kept epoch 2 of 6 while later epochs
-overfit), so a Kaggle number a few hundredths off the build record is expected, not a finding; the GPU and CPU build
-records agree to four decimals on this recipe, but GPU kernel non-determinism can still move a probability near the
-boundary; the remote code runs in the executor's process, verified but not reviewed; and nothing here is a benchmark
+overfit), so a Kaggle number a few hundredths off the build record would have been expected, not a finding — and in the event the
+T4 run reproduced the RTX 5070 Ti and CPU build records to four decimals (accuracy 0.8425, MCC 0.6934, the same kept
+epoch and the same confusion counts), although GPU kernel non-determinism can still move a probability near the
+boundary on another device; the remote code runs in the executor's process, verified but not reviewed; and nothing here is a benchmark
 reproduction — it is one seeded draw of one Genomic Benchmarks task under one window convention.

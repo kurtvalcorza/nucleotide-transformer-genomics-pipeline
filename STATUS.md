@@ -1,6 +1,6 @@
 # Release status
 
-Current status: **Candidate** — the `E2E` tutorial notebook `tutorials/nucleotide_transformer_colab.ipynb` carries the pipeline package with its adaptation contract, the digest-pinned inline promoter sample, the pinned snapshot manifest and the exact runtime pins, and its default path has a recorded package-API build record (RTX 5070 Ti and CPU, 2026-09-20, `docs/release-verification.md`). It becomes **Release-grade** when the exact committed notebook blob executes top-to-bottom in a clean supported runtime (Kaggle Tesla T4 or Colab, no repository checkout, empty Hugging Face cache) and the row is recorded in `docs/release-verification.md`.
+Current status: **Release-grade** — the `E2E` tutorial notebook `tutorials/nucleotide_transformer_colab.ipynb` (blob `c1aa7361`, committed at `3e37b6c`) executed top-to-bottom in a clean Kaggle Tesla T4 runtime on 2026-09-20 (11/11 ok with 1 restart after the install cell, 248.3 s, 18 files / 224 MB staged from the Hub, the two model-code files digest-verified before import), recorded in `docs/release-verification.md`. At that revision the pipeline package with its adaptation contract, the digest-pinned inline promoter sample, the 51 tests, the fleet generator parity, `MODEL_CARD.md` (MODEL_CARD_SPEC 1.1) and the release-asset validation were all in place; the T4 run reproduced the RTX 5070 Ti and CPU package-API build records to four decimals (accuracy 0.8425, MCC 0.6934 on the 400 held-out windows).
 
 Both gates that previously held this row are closed:
 

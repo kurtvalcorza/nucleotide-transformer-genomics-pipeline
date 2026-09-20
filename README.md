@@ -74,7 +74,7 @@ The default data is the human non-TATA promoter benchmark of Genomic Benchmarks 
 
 ## Release status
 
-**Candidate** — the package, tests, generator parity and release-asset validation are in place and the default path has a package-API build record on GPU and CPU (`docs/release-verification.md`); promotion to Release-grade follows the exact committed notebook blob executing top-to-bottom in a clean supported runtime with no repository checkout. Static and unit checks are necessary but are never that evidence.
+**Release-grade** — the `E2E` notebook blob `c1aa7361` (committed at `3e37b6c`) executed top-to-bottom in a clean Kaggle Tesla T4 runtime on 2026-09-20 (11/11 ok with 1 restart after the install cell, 248.3 s); the record is in `docs/release-verification.md` and `STATUS.md`. Static and unit checks — including the standalone generator parity checks — are necessary but were never the evidence; the hosted clean-runtime run is.
 
 ## Checks
 

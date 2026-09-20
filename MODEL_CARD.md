@@ -231,7 +231,7 @@ Build record (RTX 5070 Ti, seed 0): the four MCC values printed by the last line
 
 | Field | Status |
 |---|---|
-| **DIMER status** | **Candidate** — E2E carrier built; clean-runtime execution evidence is recorded in `docs/release-verification.md` and gates promotion |
+| **DIMER status** | **Release-grade** — the E2E carrier (blob `c1aa7361` at `3e37b6c`) executed 11/11 in a clean Kaggle Tesla T4 runtime on 2026-09-20 with the model code digest-verified before import; record in `docs/release-verification.md` |
 | Licence status | **Accepted 2026-09-19** — CC BY-NC-SA 4.0 with its non-commercial, attribution and ShareAlike obligations |
 | Commercial use | **Not permitted** under the upstream licence |
 | Redistribution | Permitted subject to the attribution, NonCommercial and ShareAlike conditions; adapters inherit them |
@@ -267,8 +267,9 @@ The upstream licence is not an OSI-style open-source software licence: CC BY-NC-
 
 - Pins (`pyproject.toml`): `torch==2.14.0`, `torchvision==0.29.0`, `torchaudio==2.11.0`, `transformers==4.57.6`, `huggingface-hub==0.36.2`, `safetensors==0.8.0`, `numpy==2.5.3`. Python 3.12.
 - Build record 2026-09-20 (Windows fleet venv, `torch 2.14.0+cu130`, RTX 5070 Ti, seed 0, pinned 1,600 / 200 / 400 sample): load 7.9 s; majority 0.5 / MCC 0.0; GC threshold 0.5598 (`GC >= threshold -> positive`) 0.715 / 0.4308; frozen probe 0.815 / 0.6315 (train accuracy 0.8975) in 3.1 s; `adapt` 33.9 s at a 558 MiB peak, validation accuracy / MCC per epoch 0.505 / 0.071 (untrained head), 0.795 / 0.609, **0.805 / 0.621 (kept)**, 0.795 / 0.606, 0.78 / 0.577, 0.765 / 0.533, 0.80 / 0.612, training loss 0.514 → 0.139; adapted test **0.8425 / 0.6934** (promoter precision 0.9053, recall 0.765, F1 0.8293; negative precision 0.7965, recall 0.92; tp 153, tn 184, fp 16, fn 47); artifact 34,645,456 bytes, 32 tensors; reload parity on 64 test windows: all labels equal, maximum probability difference 0.0. The same run on the workstation's CPU (load 4.5 s, probe 19.4 s, adapt 212.9 s) reproduced every metric to four decimals.
-- Test suite: 51 tests in the fleet venv (offline contract tests plus model-backed tests on CPU and CUDA), `ruff` clean, generator parity 5/5, release-asset validation PASS; see `docs/release-verification.md` for what has and has not been executed in a clean runtime.
-- Not executed: the 6,000-base ceiling, datasets near the record cap, any run on sequence outside the pinned sample and the unit tests' synthetic strings, any published downstream benchmark, and any measurement beyond the numbers above.
+- Test suite: 51 tests in the fleet venv (offline contract tests plus model-backed tests on CPU and CUDA), `ruff` clean, generator parity 5/5, release-asset validation PASS.
+- Clean-runtime execution 2026-09-20: the committed notebook blob `c1aa7361` (at `3e37b6c`) ran 11/11 code cells on a Kaggle Tesla T4 from a fresh interpreter with an empty Hugging Face cache and no repository checkout (248.3 s including the pinned install and one restart; 18 files / 224 MB staged; the two model-code files digest-verified before import), reproducing the build record to four decimals: accuracy 0.8425 / MCC 0.6934, epoch 2 kept, tp 153 / tn 184 / fp 16 / fn 47, adapter 34,645,456 bytes, reload parity 64/64 with maximum probability difference 0.0. See `docs/release-verification.md`.
+- Not executed: the 6,000-base ceiling, datasets near the record cap, any run on sequence outside the pinned sample and the unit tests' synthetic strings, any published downstream benchmark, the BYOD path in a hosted runtime, and any measurement beyond the numbers above.
 
 ## References
 
