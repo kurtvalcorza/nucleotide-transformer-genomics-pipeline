@@ -1,8 +1,0 @@
-# This repository ships no installable package (licence HOLD), so the lint config lives here rather
-# than in a pyproject. Settings match the rest of the DIMER pipeline fleet.
-line-length = 110
-target-version = "py312"
-extend-exclude = ["tutorials"]
-
-[lint]
-select = ["E", "F", "I", "UP", "B", "SIM"]
