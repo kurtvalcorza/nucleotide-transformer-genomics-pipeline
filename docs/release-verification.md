@@ -73,8 +73,8 @@ Before changing the registry status from `Candidate` to `Release-grade`:
 4. verify that Section 1 reports `NOTEBOOK_SOURCE.repository_revision` equal to the revision recorded in
    `metadata.dimer.generated_from` and that the installed core package versions equal the inline `PINS`
    (= `pyproject.toml`): `torch==2.14.0`, `transformers==4.57.6`, `safetensors==0.8.0`, `huggingface-hub==0.36.2`,
-   `numpy==2.5.3` (an interpreter restart after the install is expected where the runtime's preinstalled torch or
-   numpy differ from the pins);
+   `numpy==2.5.3` (they are installed into the isolated environment Section 1 builds, so no interpreter restart is
+   expected);
 5. verify every default-path stage completes:
    - pinned runtime installed from the inline `PINS` with no GitHub access;
    - the three carried module cells execute (defining `NucleotideTransformerPipeline`, `verify_snapshot`,
