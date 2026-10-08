@@ -3,7 +3,7 @@
 `tutorials/nucleotide_transformer_colab.ipynb` (`E2E`, **standalone** carrier) is promoted from `Candidate` to
 `Release-grade` only by the exact committed notebook blob executing top-to-bottom in a clean supported runtime with no
 repository checkout, recorded in the tables below. Static checks, JSON validation, unit tests and code-cell
-compilation are **not** runtime evidence under DIMER Notebook Specification 2.0 (REL8), and the package-API build
+compilation are **not** runtime evidence under DIMER Notebook Specification 2.2 (REL8), and the package-API build
 records are a builder's pre-flight, not promotion evidence.
 
 The two decisions that previously held this row are closed and recorded in `MODEL_CARD.md` → *DIMER deployment
@@ -20,7 +20,7 @@ and `python tools/build_notebook.py --check`, which together check:
   (`tests/test_notebook_parity.py` PAR1–PAR3, ST1);
 - the notebook JSON parses, every code cell compiles as plain Python, no cell carries stored outputs or an execution
   count, every code cell is preceded by an explanatory markdown cell, and `metadata.dimer` declares the `E2E`
-  profile, spec `2.0`, `standalone: true`, the pedagogical mode and the generating revision with the package digest;
+  profile, spec `2.2`, `standalone: true`, the pedagogical mode and the generating revision with the package digest;
 - the snapshot manifest names the pinned identity, lists `model.safetensors`, and **lists the two Python files the
   loader executes**, so their digests are inside the verified perimeter (`tests/test_pipeline.py`);
 - **the remote-code perimeter:** `trust_remote_code=True` appears nowhere in the notebook outside the carried module
@@ -73,8 +73,8 @@ Before changing the registry status from `Candidate` to `Release-grade`:
 4. verify that Section 1 reports `NOTEBOOK_SOURCE.repository_revision` equal to the revision recorded in
    `metadata.dimer.generated_from` and that the installed core package versions equal the inline `PINS`
    (= `pyproject.toml`): `torch==2.14.0`, `transformers==4.57.6`, `safetensors==0.8.0`, `huggingface-hub==0.36.2`,
-   `numpy==2.5.3` (an interpreter restart after the install is expected where the runtime's preinstalled torch or
-   numpy differ from the pins);
+   `numpy==2.5.3` (they are installed into the isolated environment Section 1 builds, so no interpreter restart is
+   expected);
 5. verify every default-path stage completes:
    - pinned runtime installed from the inline `PINS` with no GitHub access;
    - the three carried module cells execute (defining `NucleotideTransformerPipeline`, `verify_snapshot`,
@@ -132,7 +132,7 @@ A known-failing default path in the supported runtime blocks release (REL11).
 
 | Notebook | Commit / notebook blob | Date (UTC) | Executor | Outcome |
 |---|---|---|---|---|
-| `nucleotide_transformer_colab.ipynb` (`E2E`) | `3e37b6c` / `c1aa7361` | 2026-09-20 | Kaggle Tesla T4 (`kurtvalcorza/dimer-nb2-nucleotide-transformer` v2; image `torch 2.10.0+cu128` / `transformers 5.0.0` / `numpy 2.0.2` before the pinned install, `torch 2.14.0+cu130` / `transformers 4.57.6` / `numpy 2.5.3` after, Python 3.12.13, `cuda:0`, driver 580.159.04) | **PASSED** — 11/11 code cells ok (1 restart after the install cell, as the stale-import guard is designed to force); 18 files / 224 MB staged from the Hub into a clean cache, all 8 manifest entries fetched and digest-verified, `remote_code.verified_before_import` true; comparison accuracy {majority 0.5, gc_threshold 0.715, frozen_probe 0.815, adapted **0.8425**} / MCC {0.0, 0.4308, 0.6315, **0.6934**}; validation curve 0.505/0.071 → 0.795/0.609, 0.805/0.621 (epoch 2 kept), 0.795/0.606, 0.78/0.577, 0.765/0.533, 0.80/0.612; adapt 32.1 s; confusion tp 153 / tn 184 / fp 16 / fn 47; adapter 34,645,456 B / 32 tensors, licence `cc-by-nc-sa-4.0`; reload parity 64/64 labels, max probability difference 0.0 — every figure identical to the RTX 5070 Ti and CPU build records to four decimals |
+| `nucleotide_transformer_colab.ipynb` (`E2E`) | `3e37b6c` / `c1aa7361` | 2026-09-20 | Kaggle Tesla T4 (`kurtvalcorza/dimer-nb2-nucleotide-transformer` v2; image `torch 2.10.0+cu128` / `transformers 5.0.0` / `numpy 2.0.2` before the pinned install, `torch 2.14.0+cu130` / `transformers 4.57.6` / `numpy 2.5.3` after, Python 3.12.13, `cuda:0`, driver 580.159.04) | **PASSED with a manual restart** (not a one-pass Run all: RUN1/RUN10, corrected 2026-10-08 after review NTP-M1) — 11/11 code cells ok (1 restart after the install cell, as the stale-import guard was designed to force); 18 files / 224 MB staged from the Hub into a clean cache, all 8 manifest entries fetched and digest-verified, `remote_code.verified_before_import` true; comparison accuracy {majority 0.5, gc_threshold 0.715, frozen_probe 0.815, adapted **0.8425**} / MCC {0.0, 0.4308, 0.6315, **0.6934**}; validation curve 0.505/0.071 → 0.795/0.609, 0.805/0.621 (epoch 2 kept), 0.795/0.606, 0.78/0.577, 0.765/0.533, 0.80/0.612; adapt 32.1 s; confusion tp 153 / tn 184 / fp 16 / fn 47; adapter 34,645,456 B / 32 tensors, licence `cc-by-nc-sa-4.0`; reload parity 64/64 labels, max probability difference 0.0 — every figure identical to the RTX 5070 Ti and CPU build records to four decimals |
 | `nucleotide_transformer_colab.ipynb` (`TASK-INFERENCE`, superseded) | `f9dc86f` / `9f67399f7bcf` | 2026-09-18 | Kaggle Tesla T4 (clean runtime, empty Hugging Face cache, no repository checkout) | PASS — 9/9 code cells, 218.6 s; all 8 files downloaded and digest-verified including the two Python files before the remote-code import; nearest-centroid probe 0.9583 (n = 24) against majority 0.5 and GC 0.375. Evidence for the earlier representation-only notebook, not for the `E2E` blob. |
 
 ## Recorded executions
@@ -144,7 +144,7 @@ stated runtime, not general estimates.
 
 | Date (UTC) | Commit / notebook blob | Executor | Path exercised | Wall | Outcome |
 |---|---|---|---|---|---|
-| 2026-09-20 | `3e37b6c` / `c1aa7361` | Kaggle Tesla T4 (`kurtvalcorza/dimer-nb2-nucleotide-transformer` v2; image `torch 2.10.0+cu128` / `transformers 5.0.0` / `numpy 2.0.2` before the pinned install, `torch 2.14.0+cu130` / `transformers 4.57.6` / `numpy 2.5.3` after, Python 3.12.13, `cuda:0`, driver 580.159.04) | Default sample path, `Run all` from a fresh interpreter with an empty Hugging Face cache and no repository checkout (blob SHA-1 verified against GitHub before execution; executor `.agent/scripts/kaggle-serial-test-suite.py`, fresh-subprocess `nbclient`) | 248.3 s (163.2 s install + restart, 85.0 s for the whole default path) | **PASSED** — 11/11 code cells ok (1 restart after the install cell, as the stale-import guard is designed to force); 18 files / 224 MB staged from the Hub into a clean cache, all 8 manifest entries fetched and digest-verified, `remote_code.verified_before_import` true; comparison accuracy {majority 0.5, gc_threshold 0.715, frozen_probe 0.815, adapted **0.8425**} / MCC {0.0, 0.4308, 0.6315, **0.6934**}; validation curve 0.505/0.071 → 0.795/0.609, 0.805/0.621 (epoch 2 kept), 0.795/0.606, 0.78/0.577, 0.765/0.533, 0.80/0.612; adapt 32.1 s; confusion tp 153 / tn 184 / fp 16 / fn 47; adapter 34,645,456 B / 32 tensors, licence `cc-by-nc-sa-4.0`; reload parity 64/64 labels, max probability difference 0.0 — every figure identical to the RTX 5070 Ti and CPU build records to four decimals |
+| 2026-09-20 | `3e37b6c` / `c1aa7361` | Kaggle Tesla T4 (`kurtvalcorza/dimer-nb2-nucleotide-transformer` v2; image `torch 2.10.0+cu128` / `transformers 5.0.0` / `numpy 2.0.2` before the pinned install, `torch 2.14.0+cu130` / `transformers 4.57.6` / `numpy 2.5.3` after, Python 3.12.13, `cuda:0`, driver 580.159.04) | Default sample path, `Run all` from a fresh interpreter with an empty Hugging Face cache and no repository checkout (blob SHA-1 verified against GitHub before execution; executor `.agent/scripts/kaggle-serial-test-suite.py`, fresh-subprocess `nbclient`) | 248.3 s (163.2 s install + restart, 85.0 s for the whole default path) | **PASSED with a manual restart** (not a one-pass Run all: RUN1/RUN10, corrected 2026-10-08 after review NTP-M1) — 11/11 code cells ok (1 restart after the install cell, as the stale-import guard was designed to force); 18 files / 224 MB staged from the Hub into a clean cache, all 8 manifest entries fetched and digest-verified, `remote_code.verified_before_import` true; comparison accuracy {majority 0.5, gc_threshold 0.715, frozen_probe 0.815, adapted **0.8425**} / MCC {0.0, 0.4308, 0.6315, **0.6934**}; validation curve 0.505/0.071 → 0.795/0.609, 0.805/0.621 (epoch 2 kept), 0.795/0.606, 0.78/0.577, 0.765/0.533, 0.80/0.612; adapt 32.1 s; confusion tp 153 / tn 184 / fp 16 / fn 47; adapter 34,645,456 B / 32 tensors, licence `cc-by-nc-sa-4.0`; reload parity 64/64 labels, max probability difference 0.0 — every figure identical to the RTX 5070 Ti and CPU build records to four decimals |
 | 2026-09-20 | package API at the candidate revision (not the notebook) | Windows fleet venv, Python 3.12.10, torch 2.14.0+cu130, transformers 4.57.6, RTX 5070 Ti (`cuda:0`), snapshot pre-staged | Package-API build record on the pinned sample: `sample_dataset` → baselines → `linear_probe` → `adapt` (defaults) → `evaluate` → `save_artifact` → `from_artifact` parity | load 7.9 s, probe 3.1 s, adapt 33.9 s | PASS — majority 0.5 / 0.0; GC 0.715 / 0.4308 (threshold 0.5598); frozen probe 0.815 / 0.6315; adapted **0.8425 / 0.6934** (epoch 2 kept; tp 153, tn 184, fp 16, fn 47); artifact 34,645,456 B / 32 tensors; parity 64/64 labels, max probability difference 0.0; 558 MiB peak. Pre-flight, not promotion evidence. |
 | 2026-09-20 | package API at the candidate revision (not the notebook) | same venv, CPU (`cpu`) | Same path | load 4.5 s, probe 19.4 s, adapt 212.9 s | PASS — every metric identical to the GPU row to four decimals; artifact 34,645,456 B; parity exact. Pre-flight, not promotion evidence. |
 | 2026-09-20 | `tests/` at the candidate revision | same venv (CPU and `cuda:0`) | `pytest`: 51 offline, model-backed and parity tests | — | 51 passed; `ruff` clean; `validate_release_assets.py` PASS; `build_notebook.py --check` clean. Static, not runtime evidence. |
@@ -152,19 +152,8 @@ stated runtime, not general estimates.
 
 ## Current status
 
-**Release-grade.** The `E2E` notebook blob `c1aa7361` (committed at `3e37b6c`) executed top-to-bottom in a clean Kaggle Tesla T4
-runtime on 2026-09-20 (11/11 ok with 1 restart after the install cell, 248.3 s, 18 files / 224 MB fetched from the Hub and
-digest-verified inside the notebook — the two model-code files before they were imported) with no repository checkout —
-the REL1/REL10 supported-runtime evidence this file gates on. The package-API build records above are what preceded it
-and remain history. Any later change to the carried modules or to the notebook template changes the blob and returns
-the row to `Candidate` until a new clean run is recorded.
+**Candidate.** The notebook was regenerated for the 2026-10-02 Notebook Review Framework v1 review (`docs/reviews/2026-10-02-notebook-review/`): Section 1 now builds an isolated, hash-locked environment (no install into the kernel, no restart), `adapt` always starts from the pinned base and `reset_to_base` undoes an adaptation, the quality comparisons are recorded verdicts instead of asserts, the BYOD minimum is stated as Section 4 enforces it, and the spec 2.2 guided layer was added. The new blob has no hosted run recorded yet. The 2026-09-20 Kaggle T4 run of the earlier blob `c1aa7361` needed a manual restart after the install cell, so it never met RUN1/RUN10 and is kept as history only.
 
-Facts a reviewer should weigh: the frozen probe is a strong reference (0.815 / 0.632) because promoter windows are
-GC-rich and the representation already carries composition and more, so the fine-tuning's gain is 0.06 MCC — a few
-times the run-to-run spread observed for the recipe, not a large margin; the 200-window validation split is noisy to
-about ±0.03 MCC and the kept epoch can differ between runs (the build record kept epoch 2 of 6 while later epochs
-overfit), so a Kaggle number a few hundredths off the build record would have been expected, not a finding — and in the event the
-T4 run reproduced the RTX 5070 Ti and CPU build records to four decimals (accuracy 0.8425, MCC 0.6934, the same kept
-epoch and the same confusion counts), although GPU kernel non-determinism can still move a probability near the
-boundary on another device; the remote code runs in the executor's process, verified but not reviewed; and nothing here is a benchmark
-reproduction — it is one seeded draw of one Genomic Benchmarks task under one window convention.
+Remaining gates: a one-pass hosted run of the current blob; the REL12 BYOD run (a representative CSV, an incompatible one, through export and reload); a clean hosted CPU run for the stated default runtime (UX12), or keep naming the T4 GPU as the verified runtime.
+
+Facts a reviewer should weigh: the frozen probe is a strong reference (0.815 / 0.632) because promoter windows are GC-rich and the representation already carries composition and more, so the fine-tuning's gain is 0.06 MCC from one seed. No multi-seed spread is recorded, so whether that gain exceeds seed-to-seed variation is untested, and on 400 windows the sampling error of MCC is of a similar size. The records that exist (RTX 5070 Ti, workstation CPU, Kaggle T4) agree to four decimals under `SEED = 0`, although GPU kernel non-determinism can still move a probability near the boundary on another device; the remote code runs in the executor's process, verified but not reviewed; and nothing here is a benchmark reproduction — it is one seeded draw of one Genomic Benchmarks task under one window convention.

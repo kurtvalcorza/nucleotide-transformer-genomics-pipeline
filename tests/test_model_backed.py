@@ -144,3 +144,22 @@ def test_cuda_path_matches_the_contract(data, tmp_path):
     reloaded = NucleotideTransformerPipeline.from_artifact(artifact, device="cuda:0", weights_dir=DEFAULT_WEIGHTS_DIR)
     sequences = [r["sequence"] for r in data["test"]]
     assert reloaded.predict(sequences)["labels"] == pipe.predict(sequences)["labels"]
+
+
+def test_rerun_after_adapt_starts_from_the_pinned_base(data):
+    """Review NTP-M2: adapt(layers=2) then adapt(layers=0) leaves block 11 equal to the base, embed after
+    reset_to_base equals embed before adapt, and the frozen probe refuses an adapted encoder."""
+    fresh = NucleotideTransformerPipeline.from_pretrained(device="cpu", weights_dir=DEFAULT_WEIGHTS_DIR)
+    base = {k: v.detach().clone() for k, v in fresh._model.state_dict().items() if k.startswith("esm.encoder.layer.11.")}
+    sequences = [r["sequence"] for r in data["test"][:4]]
+    before = fresh.embed(sequences)
+    fresh.adapt(data["train"], None, epochs=1, layers=2, batch_size=8)
+    assert any(not torch.equal(base[k], fresh._model.state_dict()[k]) for k in base)
+    with pytest.raises(RuntimeError, match="reset_to_base"):
+        fresh.linear_probe(data["train"], data["test"])
+    result = fresh.adapt(data["train"], data["val"], epochs=1, layers=0, batch_size=8)
+    assert result["layers"] == 0 and fresh.encoder_is_base
+    assert all(torch.equal(base[k], fresh._model.state_dict()[k]) for k in base)
+    fresh.adapt(data["train"], None, epochs=1, layers=2, batch_size=8)
+    assert fresh.reset_to_base() and fresh.adapter is None
+    assert fresh.embed(sequences) == before

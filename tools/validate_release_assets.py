@@ -1,6 +1,6 @@
 """Static release-asset validation for the Nucleotide Transformer v2 50M genomics DIMER pipeline.
 
-Checks the STANDALONE tutorial notebook (DIMER Notebook Specification 2.0 §4), the tutorial
+Checks the STANDALONE tutorial notebook (DIMER Notebook Specification 2.2 §4), the tutorial
 registry, model card, README, STATUS.md and weight documentation for source conformance and
 cross-document identity consistency, and runs the generator parity checks (PAR1–PAR3).
 
@@ -42,12 +42,19 @@ EXPECTED_OUTPUTS = (
     "outputs/nucleotide_transformer_adapter",
     "outputs/nucleotide_transformer_result.json",
 )
+# NTP-m3: phrases that assert a run-to-run spread no record measures.
+UNSUPPORTED_SPREAD_CLAIMS = ("run-to-run spread", "within a few hundredths", "from one GPU run to the next")
 # Profile-specific code the notebook must exercise through the carried package's public API.
 CODE_MARKERS = (
     "splits = sample_dataset()",
     "records = load_byod_dataset(byod_csv)",
     "splits = split_dataset(records, seed=SPLIT_SEED)",
-    "dataset_manifests = {name: validate_dataset(part, require_both_labels=(name == 'train')) for name, part in splits.items()}",
+    # NTP-m1: each split validated, val/test with one record as linear_probe/evaluate accept, the split named on refusal
+    "min_records=MIN_RECORDS if name == 'train' else 1",
+    "dataset_manifests = {name: validate_split(name, part) for name, part in splits.items()}",
+    "BYOD_MIN_SEQUENCES = 12",
+    # NTP-M2: Sections 5 and 6 put the pinned base back after an in-place adaptation
+    "if not pipe.encoder_is_base or pipe.adapter is not None:",
     "disjoint = check_split_disjoint(splits)",
     "write_dataset_csv(train_records, 'outputs/nucleotide_transformer_train.csv')",
     "validate_dataset(probe, require_both_labels=True)",
@@ -61,13 +68,15 @@ CODE_MARKERS = (
     "baseline_majority = majority_baseline(train_records, test_records)",
     "baseline_gc = gc_threshold_baseline(train_records, test_records)",
     "frozen_probe = pipe.linear_probe(train_records, test_records)",
-    "assert frozen_probe['mcc'] > baseline_gc['mcc'] > baseline_majority['mcc']",
+    "frozen_ordering = 'probe > GC rule > majority' if frozen_probe['mcc'] > baseline_gc['mcc'] > baseline_majority['mcc'] else",
+    "pipe = NucleotideTransformerPipeline.from_pretrained(weights_dir=WEIGHTS_DIR)",
+    "BYOD_PATH = ''",
     "adapt_result = pipe.adapt(train_records, val_records, epochs=EPOCHS, lr=LEARNING_RATE, layers=TRAINED_LAYERS, seed=SEED, progress=report)",
     "adapted_test = pipe.evaluate(test_records)",
     "adapted_val = pipe.evaluate(val_records)",
     "verdict = evaluation_report(adapted_test, frozen_probe, [baseline_majority, baseline_gc], sample_kind=",
-    "assert adapted_test['mcc'] > frozen_probe['mcc']",
-    "assert verdict['adapted_beats_baselines']",
+    "if not (adapted_test['mcc'] > frozen_probe['mcc'] and verdict['adapted_beats_baselines']):",
+    "'adapted_beats_frozen_probe': adapted_test['mcc'] > frozen_probe['mcc'],",
     "pipe.save_artifact(artifact_dir, metadata={'tutorial': 'nucleotide_transformer', 'data_source': data_source})",
     "reloaded = NucleotideTransformerPipeline.from_artifact(artifact_dir, weights_dir=WEIGHTS_DIR, device=pipe.device)",
     "assert parity['identical_labels'] == parity['of'] and parity['max_probability_difference'] < 1e-4",
@@ -130,15 +139,16 @@ FORBIDDEN_OUTSIDE_MODULE = (
     "pipe._model",
     "extractall(",
 )
-INSTALL_CELL_MARKER = "subprocess.run([sys.executable, '-m', 'pip', 'install', '-q', *PINS], check=True)"
+# The one kernel cell (generator /2.2 isolated runtime) builds the hash-locked environment; it is not learner code.
+INSTALL_CELL_MARKER = "def _isolated_environment_ready():"
 
 # ---------------------------------------------------------------------------
 # Shared checks. Everything below is source/structure validation only. Passing
 # these checks is NOT clean-runtime execution evidence under DIMER Notebook
-# Specification 2.0; see docs/release-verification.md for the release gate.
+# Specification 2.2; see docs/release-verification.md for the release gate.
 # ---------------------------------------------------------------------------
 
-NOTEBOOK_SPEC = "2.0"
+NOTEBOOK_SPEC = "2.2"
 ALLOWED_PROFILES = {"E2E", "ARTIFACT-INFERENCE", "TASK-INFERENCE", "MULTI-CAPABILITY", "SMOKE"}
 STATUS_TOKENS = ("Candidate", "Release-grade")
 PLACEHOLDER = re.compile(r"\b(TODO|TBD|FIXME)\b|Insert text here|Tooltip:", re.I)
@@ -176,9 +186,11 @@ COMMON_CODE_MARKERS = (
     "PINS = [",
     "NOTEBOOK_SOURCE = {",
     "SKIP_INSTALL = os.environ.get('DIMER_NOTEBOOK_CI_PREINSTALLED') == '1'",
-    "subprocess.run([sys.executable, '-m', 'pip', 'install', '-q', *PINS], check=True)",
-    "importlib.metadata.packages_distributions()",
-    "importlib.invalidate_caches()",
+    "'--require-hashes', '--only-binary', ':all:'",
+    "'--managed-python'",
+    "if len(wheel) != UV_BYTES or hashlib.sha256(wheel).hexdigest() != UV_SHA256:",
+    "if hashlib.sha256(LOCK_TEXT.encode('utf-8')).hexdigest() != LOCK_SHA256:",
+    "_ip.input_transformers_cleanup.append(_route_to_isolated_runtime)",
     "platform.python_version()",
     "torch.__version__",
     "MANIFEST = {",
@@ -577,7 +589,7 @@ def _validate_identity(
         for node in ast.walk(tree):
             rebound = [name for name in _assignment_targets(node) if name in IDENTITY_NAMES]
             _check(not rebound, f"{path.name}: {rebound} must not be rebound outside the module cell (cell {index})")
-    outside = "\n".join(source for index, source, _ in code_cells if index not in embedded)
+    outside = "\n".join(source for index, source, _ in code_cells if index not in embedded and "# dimer: kernel cell" not in source)
     manifest_block = re.search(r"^MANIFEST = (\{.*?^\})$", outside, re.M | re.S)
     _check(manifest_block is not None, f"{path.name}: model cell must carry an inline MANIFEST literal (ST3)")
     outside_without_manifest = outside.replace(manifest_block.group(0), "")
@@ -604,17 +616,14 @@ def _validate_parity(path: Path, notebook: dict, code_cells: list[tuple[int, str
 
 
 def _validate_bootstrap_guard(path: Path, code_cells: list[tuple[int, str, ast.Module]]) -> None:
-    """The stale-import guard must actually raise: `if stale:` whose body raises RuntimeError."""
-    raises = False
-    for _, _, tree in code_cells:
-        for node in ast.walk(tree):
-            if isinstance(node, ast.If) and isinstance(node.test, ast.Name) and node.test.id == "stale":
-                for sub in ast.walk(node):
-                    if isinstance(sub, ast.Raise) and isinstance(sub.exc, ast.Call):
-                        func = sub.exc.func
-                        if isinstance(func, ast.Name) and func.id == "RuntimeError":
-                            raises = True
-    _check(raises, f"{path.name}: install cell must raise RuntimeError when already-imported packages change")
+    """RUN1/RUN10/ENV6 (2026-10-05 fleet sweep SWP-R): nothing is pip-installed into the kernel and no cell asks for a
+    restart. Exactly one cell runs in the kernel (the isolated-environment bootstrap); it reuses a matching environment."""
+    kernel = [source for _, source, _ in code_cells if "# dimer: kernel cell" in source]
+    _check(len(kernel) == 1, f"{path.name}: exactly one '# dimer: kernel cell' bootstrap cell is required, found {len(kernel)}")
+    code = "\n".join(source for _, source, _ in code_cells)
+    _check("'-m', 'pip', 'install'" not in code and "pip install" not in code, f"{path.name}: no cell may pip-install into the notebook kernel (RUN10)")
+    _check("Restart the runtime" not in code, f"{path.name}: no cell may ask for a runtime restart (RUN1)")
+    _check("_isolated_environment_ready()" in kernel[0], f"{path.name}: the bootstrap cell must reuse a matching isolated environment")
 
 
 def _enabling_calls(text: str) -> int:
@@ -654,12 +663,21 @@ def _validate_notebook_content(
     model_id, _revision = _package_identity()
     stripped = {index: _strip_comments(source) for index, source, _ in code_cells}
     code = "\n".join(stripped.values())
-    outside = "\n".join(text for index, text in stripped.items() if index not in embedded)
+    kernel_cells = {index for index, source, _ in code_cells if "# dimer: kernel cell" in source}
+    outside = "\n".join(text for index, text in stripped.items() if index not in embedded and index not in kernel_cells)
     _validate_remote_code_perimeter(path, stripped, embedded)
     missing = [marker for marker in COMMON_CODE_MARKERS + CODE_MARKERS if marker not in code]
     _check(not missing, f"{path.name}: missing required source markers: {missing}")
     present = [label for label, pattern in FORBIDDEN_PATTERNS if pattern.search(code)]
     _check(not present, f"{path.name}: forbidden/insecure source: {present}")
+    # NTP-M2: two Sections (5 and 6) reset an adapted encoder before reading the frozen model.
+    resets = code.count("if not pipe.encoder_is_base or pipe.adapter is not None:")
+    _check(resets == 2, f"{path.name}: Sections 5 and 6 must each reset an adapted encoder (found {resets})")
+    # NTP-m3: no variability claim without a recorded measurement.
+    unsupported = [phrase for phrase in UNSUPPORTED_SPREAD_CLAIMS if phrase in markdown]
+    _check(not unsupported, f"{path.name}: run-to-run spread claimed but never recorded (NTP-m3): {unsupported}")
+    # NTP-m1: the stated BYOD minimum is the one Section 4 enforces.
+    _check("at least eight sequences" not in markdown, f"{path.name}: BYOD minimum stated as eight; Section 4 needs 12")
     outside_stage_cells = "\n".join(
         text for index, text in stripped.items() if index not in embedded and INSTALL_CELL_MARKER not in text
     )
