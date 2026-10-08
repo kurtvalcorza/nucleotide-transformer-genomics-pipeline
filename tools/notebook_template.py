@@ -13,6 +13,20 @@ TEMPLATE = {
     "notebook_name": "nucleotide_transformer_colab.ipynb",
     "profile": "E2E",
     "mode": "GUIDED",
+    "isolated_runtime": True,
+    "infrastructure_labels": True,
+    # The fleet's uv isolated-environment mechanism (generator /2.2): managed CPython, a
+    # size- and SHA-256-verified uv wheel, and a lock compiled from the pyproject pins with
+    # `uv pip compile pyproject.toml --python-version 3.12 --python-platform x86_64-manylinux_2_28 --generate-hashes
+    # --only-binary :all: -o tutorials/requirements-colab.lock.txt`.
+    "managed_python": "3.12.12",
+    "uv": {
+        "version": "0.12.15",
+        "url": "https://files.pythonhosted.org/packages/1e/fd/432451d732917c49152a291de3ef171aa6b0f1a22d39780fb2c1f085ca4c/uv-0.12.15-py3-none-manylinux_2_17_x86_64.manylinux2014_x86_64.whl",
+        "bytes": 20081404,
+        "sha256": "aee9802f46bae436bd91751bb33ddeb379ef1596b5c19df193219d545d244b60",
+    },
+    "lock": "tutorials/requirements-colab.lock.txt",
     "pipeline_class": "NucleotideTransformerPipeline",
     "weights_key": "nt-v2-50m-multi-species",
     "modules": ["pipeline.py", "metrics.py", "samples.py"],
@@ -32,9 +46,11 @@ TEMPLATE = {
         "it is not a safety claim about that code, and this is the one row of the fleet where remote code runs at all "
         "(accepted for this row on 2026-09-20)."
     ),
+    # NTP-m6: replaces the generic getattr(pipe, 'source', ...) fallback with values the cell computed.
+    "load_print": "print({'device': pipe.device, 'revision': snapshot['revision'], 'weights_dir': str(WEIGHTS_DIR), 'weight_sha256': pipe.weight_sha256[:16] + '...', 'remote_code_executed': pipe.remote_code_executed, 'encoder_is_base': pipe.encoder_is_base})",
     "capability": "DNA sequence representation (one 512-d mean-pooled vector per sequence) and bounded supervised fine-tuning of a promoter classifier — a mean-pooled head plus the last two encoder blocks — on labelled `{id, sequence, label}` records, using the pinned `InstaDeepAI/nucleotide-transformer-v2-50m-multi-species` weights (CC BY-NC-SA 4.0)",
     "run_all": (
-        "Selecting **Run all** in a fresh supported runtime installs the pinned dependencies, stages and digest-verifies the "
+        "Selecting **Run all** in a fresh supported runtime builds an isolated hash-locked environment from the pinned dependencies (nothing is installed into the notebook kernel, so no restart is needed), stages and digest-verifies the "
         "pinned `InstaDeepAI/nucleotide-transformer-v2-50m-multi-species` snapshot (a 224 MB `model.safetensors` and the two "
         "model-code files, all re-hashed before the code is imported), reads the 2,200-sequence human promoter sample that is "
         "carried **inline** in the package (no data download at all), validates and splits it 1,600 / 200 / 400 without "
@@ -44,13 +60,13 @@ TEMPLATE = {
         "cross-entropy and epoch selection on validation MCC, scores the held-out sequences again, exports the adapter as "
         "safetensors with a manifest, and reloads that artifact into a fresh pipeline to verify prediction parity. The "
         "default path needs no repository clone, no DIMER worker or service, no credential, no upload dialog and no "
-        "configuration edit (NOTEBOOK_SPEC 2.0 §5). On an RTX 5070 Ti the fine-tuning took 34 s and the whole path about two "
+        "configuration edit (NOTEBOOK_SPEC 2.2 §5). On an RTX 5070 Ti the fine-tuning took 34 s and the whole path about two "
         "minutes after the snapshot download; every sequence is 47 tokens long, so CPU is workable — a CUDA runtime is used "
         "automatically when present."
     ),
     "byod": (
-        "After the tutorial workflow completes, set `USE_BYOD = True` in Section 4 and re-run from that cell to upload one "
-        "CSV with a header naming `sequence` and `label` (0/1; an optional `id`) — at least eight sequences of 12..6,000 "
+        "After the tutorial workflow completes, set `USE_BYOD = True` and `BYOD_PATH` (a CSV already in the runtime; on Colab an empty path opens an upload dialog) in Section 4 and re-run from that cell to supply one "
+        "CSV with a header naming `sequence` and `label` (0/1; an optional `id`) — at least 12 distinct sequences (the 65 / 15 / 20 split must leave 8 training records) of 12..6,000 "
         "A/C/G/T/N bases with both labels present. The records pass through the same validation, sequence-disjoint split, "
         "baselines, frozen probe, fine-tuning, held-out evaluation, artifact export and reload-parity cells as the promoter "
         "sample. Uploaded files stay inside this runtime. BYOD is optional and never part of the default path."
@@ -77,6 +93,9 @@ TEMPLATE = {
         "checkpoint, which are not in the manifest and are never staged or loaded, so no pickle is opened anywhere. The "
         "adapter written in Section 9 is safetensors too."
     ),
+    "guided": {"opening": [(
+        "**Who this notebook is for.** A learner who knows basic Python, has used Colab or Jupyter and knows what a DNA sequence and GC content are, and wants to see how a genomic language model turns sequences into representations, how to test honestly whether fine-tuning it beats simple baselines, and how to export the result under its licence. The audience is bioinformatics students and practitioners preparing their own labelled sequences; no prior experience with the Nucleotide Transformer, transformers or fine-tuning is assumed — each term is explained where it first matters and again in the **Glossary**. CPU is workable (every window is 47 tokens); a T4 is faster.\n\n**Input → Model → Output.**\n\n| | Representation | Bounded fine-tuning |\n|---|---|---|\n| Input | DNA strings of A/C/G/T/N, 12..6,000 bases | labelled records `{{id, sequence, label}}`: 2,200 human promoter / non-promoter windows of 251 bases carried inline (1,600 train, 200 validation, 400 test) or your own CSV |\n| Model | the Nucleotide Transformer v2 50M encoder (6-mer tokens, 12 blocks, loaded with its digest-verified model code) | a fresh mean-pooled head plus the last two encoder blocks trained with cross-entropy; the rest frozen |\n| Output | one 512-d mean-pooled vector per sequence; a masked 6-mer distribution | a promoter label and probability per window, held-out accuracy and MCC beside two baselines and a frozen probe, and a CC BY-NC-SA 4.0 safetensors adapter |\n\n**How to use this notebook.** Choose a runtime, then **Runtime → Run all**. Run all completes in one pass: Section 1 installs nothing into the notebook's own Python, so no restart is needed (the recorded hosted run of the previous version needed one; this version removes it). Sections 1–3 are **infrastructure** — the isolated environment, the carried package and the verified snapshot with its model code — and their cells are collapsed; you may run them without studying them. The learning path starts in Section 4. Form fields (`# @param`) are the only values meant to be edited, and the defaults reproduce the recorded run. Before each principal result the notebook asks you to **Predict**; after it comes a collapsible **Check your reasoning** with a worked answer from the recorded Kaggle T4 run of 20 September 2026 (identical to the build records to four decimals). **Troubleshooting**, a **Glossary** and a **Conclusion** template are at the end. Writing your predictions down is optional.\n\n**Roadmap:** 1–3 infrastructure → 4 the promoter sample, provenance and a leakage-free split *(evaluation practice)* → 5 representations and masked prediction *(core concept: a representation is not a prediction)* → 6 two baselines and the frozen probe *(evaluation practice)* → 7 bounded fine-tuning *(core concept: what is trained)* → 8 held-out evaluation → 9 predictions, export and reload *(engineering)* → conclude."
+    )]},
     "learning_objectives": (
         "install the pinned runtime; read what the carried package guarantees, including where its remote-code perimeter "
         "begins and ends; stage and digest-verify the immutable upstream snapshot; read a digest-pinned, licence-traced "
@@ -96,9 +115,10 @@ TEMPLATE = {
         "promoter classifier transfers to other regulatory elements or other species. The repository exposes none of these."
     ),
     "prerequisites": [
-        "- **Runtime:** a fresh supported runtime (Google Colab or Jupyter, Python 3.12). The default path runs on CPU (float32) and uses CUDA automatically when available. Every sequence is 251 bases = 47 tokens, so the model is cheap per step: the build record measured 3 s for the frozen probe and 34 s for the six-epoch fine-tuning with per-epoch validation on an RTX 5070 Ti (558 MiB peak), and 213 s for the same fine-tuning on the build workstation's CPU (19 s for the probe). Expect a few tens of minutes on a 2-vCPU hosted runtime. The pinned `torch==2.14.0` install and the 224 MB checkpoint are the large downloads of the run; the data is carried inline.",
+        '- **Learner:** basic Python and Colab or Jupyter familiarity; no prior experience with the Nucleotide Transformer or fine-tuning. Tokens, embeddings, probes, MCC, epochs and adapters are explained where they are first used and again in the Glossary.',
+        "- **Runtime:** a fresh supported **Linux x86_64** runtime (Google Colab, Kaggle or Linux Jupyter). Section 1 builds its own Python 3.12.12 environment from a hash-locked list of manylinux wheels, so the Python version of the kernel itself does not matter and nothing is installed into it; a Windows or macOS kernel is not supported. The default path runs on CPU (float32) and uses CUDA automatically when available. Every sequence is 251 bases = 47 tokens, so the model is cheap per step: the build record measured 3 s for the frozen probe and 34 s for the six-epoch fine-tuning with per-epoch validation on an RTX 5070 Ti (558 MiB peak), and 213 s for the same fine-tuning on the build workstation's CPU (19 s for the probe). No clean hosted CPU run is recorded: a few tens of minutes on a 2-vCPU hosted runtime is an **untested estimate** from the workstation timings, and the verified hosted runtime is a **T4 GPU** (see `docs/release-verification.md`). The pinned `torch==2.14.0` install and the 224 MB checkpoint are the large downloads of the run; the data is carried inline.",
         "- **Knowledge:** basic Python; what a DNA sequence, GC content and a promoter are; what accuracy and Matthews correlation measure and why MCC is 0 for a constant predictor; why a probe on frozen embeddings and a fine-tuned model answer different questions.",
-        "- **Data contract:** records are `{id, sequence, label}` — `sequence` a string of A/C/G/T/N of 12..6,000 bases (case-insensitive; `N` is tokenised base by base), `label` 0 or 1, `id` matching `[A-Za-z0-9_.:-]{1,64}` and unique; a dataset needs 8..20,000 records and a training split needs both labels; splitting de-duplicates by exact sequence so no sequence lands in two splits. BYOD accepts one CSV with a header naming `sequence` and `label` (and optionally `id`).",
+        "- **Data contract:** records are `{id, sequence, label}` — `sequence` a string of A/C/G/T/N of 12..6,000 bases (case-insensitive; `N` is tokenised base by base), `label` 0 or 1, `id` matching `[A-Za-z0-9_.:-]{1,64}` and unique; a dataset needs 8..20,000 records and a training split needs both labels; through the notebook's 65 / 15 / 20 split that means at least 12 distinct sequences; splitting de-duplicates by exact sequence so no sequence lands in two splits. BYOD accepts one CSV with a header naming `sequence` and `label` (and optionally `id`).",
         "- **Validation is structural, not biological:** every sequence is checked for alphabet, length and label, but nothing checks that a label is right or that a window is a promoter — a mislabelled set is fine-tuned on without complaint.",
         "- **Licence:** the weights are **CC BY-NC-SA 4.0**. Copying, redistribution and adaptation are permitted for non-commercial purposes with attribution and under the same licence; **commercial use is not permitted under this licence**. The adapter this notebook writes is a derivative of the weights and carries the same conditions, recorded in its manifest.",
         "- **Privacy:** Do not upload confidential or restricted data to a hosted runtime unless you are authorized to process it there. The default path uploads nothing.",
@@ -121,31 +141,58 @@ TEMPLATE = {
                 "negatives — the composition gap the GC baseline of Section 6 lives on — and four refusal probes (a "
                 "duplicate id, a base outside A/C/G/T/N, a window too short, a training split with one label) each rejected "
                 "before the model does anything."
+                '\n\n**Predict before running:** how many training, validation and test windows will the sample give, and can the same sequence end up in two splits?'
             ),
             "code": (
                 "import hashlib\n"
                 "import json\n"
                 "import time\n\n"
                 "USE_BYOD = False  # @param {{type:\"boolean\"}}\n"
+                "BYOD_PATH = ''  # @param {{type:\"string\"}}\n"
                 "SPLIT_SEED = 42  # @param {{type:\"integer\"}}\n\n"
                 "os.makedirs('outputs', exist_ok=True)\n"
+                'def byod_file(path, kind, suffixes=()):\n'
+                '    """BYOD path first (works on Colab, Kaggle and Jupyter); on Colab an empty path opens the upload dialog."""\n'
+                '    if str(path).strip():\n'
+                '        source = Path(str(path).strip()).expanduser()\n'
+                '        if not source.is_file():\n'
+                "            raise FileNotFoundError(f'BYOD path {{str(source)!r}} does not exist or is not a file (relative paths start at {{os.getcwd()}}); give the path of one {{kind}}.')\n"
+                '    else:\n'
+                '        try:\n'
+                '            from google.colab import files\n'
+                '        except ImportError:\n'
+                "            raise RuntimeError(f'BYOD is on but its path field is empty, and the upload dialog exists only in Google Colab: copy the {{kind}} into this runtime (or attach it as a Kaggle dataset) and set the path field.') from None\n"
+                '        uploaded = files.upload()\n'
+                '        if len(uploaded) != 1:\n'
+                "            raise ValueError(f'Upload exactly one {{kind}} (received {{len(uploaded)}} files; a cancelled dialog sends none). Run this cell again.')\n"
+                '        name, payload = next(iter(uploaded.items()))\n'
+                "        source = Path('work') / Path(name).name\n"
+                '        source.parent.mkdir(parents=True, exist_ok=True)\n'
+                '        source.write_bytes(payload)\n'
+                '    if suffixes and not source.name.lower().endswith(tuple(suffixes)):\n'
+                '        raise ValueError(f\'{{source.name}}: expected a {{kind}} ending in {{" or ".join(suffixes)}}.\')\n'
+                '    return source\n'
+                '\n'
+                '\n'
                 "if USE_BYOD:\n"
-                "    from google.colab import files\n"
-                "    uploaded = files.upload()\n"
-                "    file_name, payload = next(iter(uploaded.items()))\n"
-                "    byod_csv = Path('work') / 'byod.csv'\n"
-                "    byod_csv.parent.mkdir(parents=True, exist_ok=True)\n"
-                "    byod_csv.write_bytes(payload)\n"
+                "    byod_csv = byod_file(BYOD_PATH, 'labelled sequence CSV (sequence, label, optional id)', ('.csv',))\n"
                 "    records = load_byod_dataset(byod_csv)\n"
                 "    splits = split_dataset(records, seed=SPLIT_SEED)\n"
-                "    data_source = 'BYOD (' + file_name + ')'\n"
+                "    data_source = 'BYOD (' + byod_csv.name + ')'\n"
                 "    raw_rows = {{'byod': len(records)}}\n"
                 "else:\n"
                 "    t0 = time.perf_counter()\n"
                 "    splits = sample_dataset()\n"
                 "    data_source = f'{{CORPUS_NAME}}: {{CORPUS_REPO}}@{{CORPUS_REVISION[:12]}} ({{CORPUS_LICENSE}})'\n"
                 "    raw_rows = {{'origin_rows': CORPUS_ROWS, 'inline_records': sum(len(v) for v in splits.values()), 'pinned_digest': SAMPLE_DIGEST[:16] + '...', 'seconds': round(time.perf_counter() - t0, 3)}}\n"
-                "dataset_manifests = {{name: validate_dataset(part, require_both_labels=(name == 'train')) for name, part in splits.items()}}\n"
+                "BYOD_MIN_SEQUENCES = 12  # the smallest dataset whose 65 / 15 / 20 split leaves MIN_RECORDS (8) training records\n\n\n"
+                "def validate_split(name, part):\n"
+                "    # Training needs MIN_RECORDS and both labels; validation and test need one record, as linear_probe/evaluate accept.\n"
+                "    try:\n"
+                "        return validate_dataset(part, require_both_labels=(name == 'train'), min_records=MIN_RECORDS if name == 'train' else 1)\n"
+                "    except ValueError as exc:\n"
+                "        raise ValueError(f'{{name}} split ({{len(part)}} records): {{exc}}. A dataset needs at least {{BYOD_MIN_SEQUENCES}} distinct sequences, with both labels in the training split.') from None\n\n\n"
+                "dataset_manifests = {{name: validate_split(name, part) for name, part in splits.items()}}\n"
                 "splits = {{name: manifest['records'] for name, manifest in dataset_manifests.items()}}\n"
                 "disjoint = check_split_disjoint(splits)\n"
                 "train_records, val_records, test_records = splits['train'], splits['validation'], splits['test']\n"
@@ -172,6 +219,11 @@ TEMPLATE = {
         },
         {
             "md": (
+                '<details><summary>Check your reasoning</summary>1,600 / 200 / 400 in the recorded run, balanced between promoters and non-promoters, and no: splitting de-duplicates by exact bases and `check_split_disjoint` confirms that no sequence appears in two splits. Every refusal probe was rejected before the model ran.</details>'
+            ),
+        },
+        {
+            "md": (
                 "## 5. Representations and masked prediction through the inference contract\n\n"
                 "The inference contract is exercised as the representation-only tutorial exercised it. A deterministic "
                 "in-code pair of 300-base sequences with **exactly the same multiset of bases** — one carrying the 6-mer "
@@ -185,8 +237,14 @@ TEMPLATE = {
                 "returns the model's distribution at one masked position — its pre-training objective, which is what "
                 "`<mask>` inside a repeated `ATTCCG` context should recover — and `predict` is refused until an adapter "
                 "exists, which is the contract's point: the checkpoint is not a classifier."
+                '\n\n**Predict before running:** the pair of synthetic sequences has exactly the same bases in a different order. Will their embeddings be identical? And what will `predict` do before any adaptation?'
             ),
             "code": (
+                '# NTP-M2: adapt() trains the last encoder blocks of `pipe` in place. On a re-run after Section 7 (BYOD, or an\n'
+                '# experiment) put the pinned base back first, so this cell reads the frozen model it is labelled with.\n'
+                'if not pipe.encoder_is_base or pipe.adapter is not None:\n'
+                "    print({{'reset_to_base': len(pipe.reset_to_base()), 'reason': 'an earlier Section 7 had adapted the encoder in place'}})\n"
+                '\n'
                 "import csv\n"
                 "import random\n\n"
                 "rng = random.Random(7)\n"
@@ -244,6 +302,11 @@ TEMPLATE = {
         },
         {
             "md": (
+                '<details><summary>Check your reasoning</summary>Not identical: identical composition does not mean identical representation, because the encoder reads the order of the 6-mers, so the cosine distance between the pair is above zero. `predict` is **refused** until an adapter exists — the checkpoint is a masked-language model, not a classifier; `predict_masked` returns its pre-training objective instead.</details>'
+            ),
+        },
+        {
+            "md": (
                 "## 6. Baselines and the frozen model on the held-out windows\n\n"
                 "Three references frame the adaptation, each scored by `classification_metrics` (carried in `metrics.py`): "
                 "**accuracy** and **MCC** — the Matthews correlation, 0 for any constant or chance predictor and symmetric "
@@ -256,9 +319,18 @@ TEMPLATE = {
                 "mean-pooled embeddings of the training windows and scores the test windows; the model's weights are "
                 "untouched, so this is what the pre-trained representation alone knows — the build record measured "
                 "**0.815 / 0.632**. Expect the probe well above the GC rule: the representation carries more than "
-                "composition. The cell asserts that ordering."
+                "composition. The cell reports whether that ordering holds as a verdict (it does not stop the notebook, so a BYOD run still "
+                "exports). If an earlier run of Section 7 adapted the encoder in place, the cell first calls `pipe.reset_to_base()`, which "
+                "puts the pinned base blocks back and drops the adapter, so the probe always reads the frozen representation (and "
+                "`linear_probe` refuses an adapted encoder outright)."
+                '\n\n**Predict before running:** write down the test accuracy and MCC you expect for the majority answer, the GC rule and the frozen probe.'
             ),
             "code": (
+                '# NTP-M2: adapt() trains the last encoder blocks of `pipe` in place. On a re-run after Section 7 (BYOD, or an\n'
+                '# experiment) put the pinned base back first, so this cell reads the frozen model it is labelled with.\n'
+                'if not pipe.encoder_is_base or pipe.adapter is not None:\n'
+                "    print({{'reset_to_base': len(pipe.reset_to_base()), 'reason': 'an earlier Section 7 had adapted the encoder in place'}})\n"
+                '\n'
                 "METRICS = ('accuracy', 'mcc')\n"
                 "baseline_majority = majority_baseline(train_records, test_records)\n"
                 "baseline_gc = gc_threshold_baseline(train_records, test_records)\n"
@@ -267,7 +339,14 @@ TEMPLATE = {
                 "t0 = time.perf_counter()\n"
                 "frozen_probe = pipe.linear_probe(train_records, test_records)\n"
                 "print({{'frozen_probe_test': {{k: frozen_probe[k] for k in METRICS}}, 'positive': frozen_probe['positive'], 'negative': frozen_probe['negative'], 'train_accuracy': frozen_probe['train_accuracy'], 'probe': frozen_probe['probe'], 'seconds': round(time.perf_counter() - t0, 1)}})\n"
-                "assert frozen_probe['mcc'] > baseline_gc['mcc'] > baseline_majority['mcc']"
+                "frozen_ordering = 'probe > GC rule > majority' if frozen_probe['mcc'] > baseline_gc['mcc'] > baseline_majority['mcc'] else 'the expected ordering does not hold'\n"
+                "print({{'frozen_verdict': frozen_ordering}})"
+
+            ),
+        },
+        {
+            "md": (
+                '<details><summary>Check your reasoning</summary>In the recorded run the majority scored 0.5 / MCC 0.0 (a constant answer always has MCC 0), the GC rule 0.715 / 0.4308 and the frozen probe 0.815 / 0.6315. Promoters are GC-rich, so composition alone is a real floor; the probe well above it shows the representation carries more than composition.</details>'
             ),
         },
         {
@@ -280,15 +359,20 @@ TEMPLATE = {
                 "decay at a fixed learning rate, gradient clipping at 1.0, batches of 16 in seeded order, no scheduler. Epoch "
                 "0 records the untrained head's validation metrics (chance); every epoch is scored on the 200 validation "
                 "windows and the epoch with the highest **validation MCC** is kept (ties: accuracy, then the earlier epoch); "
-                "on any exception the frozen weights are restored.\n\n"
+                "on any exception the encoder returns to its state on entry. Every call starts from the **pinned base** "
+                "blocks — a re-run after an earlier adaptation (an experiment, or BYOD) first restores the blocks that adaptation "
+                "trained, so it never continues from them.\n\n"
                 "Watch the training loss fall from about 0.51 to 0.14 over six epochs while the validation MCC peaks early — "
                 "the build record kept **epoch 2** (validation 0.805 / 0.621) and the later epochs were lower: 1,600 windows "
                 "are enough to overfit two blocks, which is what the selection rule is for. The build record's "
                 "counter-examples — the CLS-token head the upstream classification class uses (0.7725 / 0.552 on 640 "
                 "windows, against 0.8275 / 0.658 for the mean-pooled head), four blocks (no better), and the whole encoder "
                 "(0.83 / 0.686 but peaking at epoch 1 with a 200 MB adapter) — are why the default is two blocks under a "
-                "mean-pooled head. Training is batched at a small learning rate, so the validation curve is noisy and the "
-                "same recipe lands within a few hundredths of the numbers below from one GPU run to the next."
+                "mean-pooled head. Training is batched at a small learning rate, so the validation curve is noisy. Only one "
+                "seed has been recorded: the build records (RTX 5070 Ti, workstation CPU) and the Kaggle T4 run agree to four "
+                "decimals under `SEED = 0`, but the spread across seeds has **not been measured**, so a different `SEED` may "
+                "move these numbers by an unknown amount."
+                '\n\n**Predict before running:** the training loss will fall every epoch. Will the validation MCC also rise every epoch? Which epoch will be kept?'
             ),
             "code": (
                 "EPOCHS = 6  # @param {{type:\"integer\"}}\n"
@@ -310,6 +394,11 @@ TEMPLATE = {
         },
         {
             "md": (
+                '<details><summary>Check your reasoning</summary>No. In the recorded run validation went 0.505 / 0.071 at epoch 0 (the untrained head, chance) → 0.795 / 0.609 → **0.805 / 0.621** → 0.795 / 0.606 → 0.78 / 0.577 → 0.765 / 0.533 → 0.80 / 0.612, so **epoch 2** was kept while the training loss kept falling: 1,600 windows are enough to start overfitting two blocks, which is what validation selection is for.</details>'
+            ),
+        },
+        {
+            "md": (
                 "## 8. Held-out evaluation\n\n"
                 "The test windows were never used for training or epoch selection, and no sequence appears in two splits. "
                 "The adapted model is scored by `pipe.evaluate` exactly as the probe and the baselines were in Section 6, the "
@@ -317,12 +406,13 @@ TEMPLATE = {
                 "first (the build record measured 0.632 → **0.693**, past the GC rule's 0.431 and the majority's 0), then "
                 "accuracy (0.815 → 0.8425), then the per-class rows — the adapted classifier is conservative on the promoter "
                 "class (precision 0.905, recall 0.765) and permissive on the negatives (recall 0.92), which a threshold on "
-                "the probabilities could trade but nothing here does. The cell asserts the adapted MCC is above the frozen "
-                "probe's and above both baselines, and writes `evaluation_report` — the structured verdict — to "
+                "the probabilities could trade but nothing here does. The cell reports whether the adapted MCC is above the frozen "
+                "probe's and above both baselines (recorded in the report; it no longer stops a BYOD run before export), and writes `evaluation_report` — the structured verdict — to "
                 "`outputs/{stem}_evaluation_report.json`. Four hundred windows from one seeded draw give **no dispersion "
                 "estimate**; the deltas are sample-sanity evidence that the adaptation contract works, not a benchmark, and "
                 "a gain on this benchmark's window convention says nothing about promoters in *your* sequences until you "
                 "measure it."
+                '\n\n**Predict before running:** will the adapted model beat the frozen probe on test MCC, and by about how much?'
             ),
             "code": (
                 "adapted_test = pipe.evaluate(test_records)\n"
@@ -347,15 +437,23 @@ TEMPLATE = {
                 "    'test_metrics': adapted_test,\n"
                 "    'comparison': comparison,\n"
                 "    'verdict': verdict,\n"
+                "    'frozen_ordering': frozen_ordering,\n"
+                "    'adapted_beats_frozen_probe': adapted_test['mcc'] > frozen_probe['mcc'],\n"
                 "    'adaptation': {{k: v for k, v in adapt_result.items() if k not in ('history', 'trainable_names')}},\n"
                 "    'history': adapt_result['history'],\n"
                 "    'adaptation_seconds': adapt_seconds,\n"
                 "}}\n"
                 "with open('outputs/{stem}_evaluation_report.json', 'w', encoding='utf-8') as f:\n"
                 "    json.dump(evaluation_report_payload, f, indent=2, ensure_ascii=False)\n"
-                "assert adapted_test['mcc'] > frozen_probe['mcc']\n"
-                "assert verdict['adapted_beats_baselines']\n"
+                "if not (adapted_test['mcc'] > frozen_probe['mcc'] and verdict['adapted_beats_baselines']):\n"
+                "    print('The adapted model did not beat the frozen probe and both baselines on MCC; the report, export and reload still run. Read the baselines and the validation curve before trusting it.')\n"
+
                 "print({{'report': 'outputs/{stem}_evaluation_report.json', 'mcc_gain_over_frozen': verdict['mcc_gain_over_frozen']}})"
+            ),
+        },
+        {
+            "md": (
+                '<details><summary>Check your reasoning</summary>Yes in the recorded run: accuracy 0.815 → 0.8425 and MCC 0.6315 → 0.6934, a gain of about 0.06 from one seed. Whether that exceeds seed-to-seed variation is **untested** (no multi-seed spread is recorded), and on 400 windows the sampling error of MCC is of a similar size, so treat it as a small margin. The confusion counts (tp 153, tn 184, fp 16, fn 47) show the conservative promoter class. The verdict line records the comparison instead of stopping the notebook.</details>'
             ),
         },
         {
@@ -375,6 +473,7 @@ TEMPLATE = {
                 "its exact tensor set **before** deserialising, refuses any encoder tensor outside the recorded blocks, and "
                 "overlays the tensors onto a freshly loaded base — a new object from files, not the in-memory model (VER2). "
                 "The cell asserts identical labels and near-identical probabilities on 64 test windows (VER4)."
+                '\n\n**Predict before running:** the reloaded pipeline is rebuilt from the adapter file and the pinned base. Will its 64 test predictions match the in-memory model exactly?'
             ),
             "code": (
                 "import shutil\n\n"
@@ -420,6 +519,11 @@ TEMPLATE = {
                 "print(sorted(os.listdir('outputs')))"
             ),
         },
+        {
+            "md": (
+                '<details><summary>Check your reasoning</summary>Yes: the recorded run reported 64 of 64 identical labels and a maximum probability difference of 0.0, and the adapter (34,645,456 bytes, 32 tensors) carried the licence `cc-by-nc-sa-4.0` in its manifest.</details>'
+            ),
+        },
     ],
     "closing": (
         "## Interpretation and limits\n\n"
@@ -434,8 +538,9 @@ TEMPLATE = {
         "none. So a gain here says the last two blocks learned that convention's promoter signal beyond composition, not "
         "that the classifier finds promoters in arbitrary sequence, handles TATA promoters or other species, or that its "
         "probabilities are calibrated (they are not; the per-class rows show a conservative promoter class). The 0.06 MCC "
-        "gain over the frozen probe is a few times the run-to-run spread the build record observed, not a large margin, and "
-        "the whole-encoder alternative that scores similarly peaks at epoch 1 and costs a 200 MB adapter — bounded is the "
+        "gain over the frozen probe comes from one seed: its size against seed-to-seed variation is **untested** (no "
+        "multi-seed spread is recorded) and the sampling error of MCC on 400 windows is of a similar size, so it is a small "
+        "margin, not an established one; and the whole-encoder alternative that scores similarly peaks at epoch 1 and costs a 200 MB adapter — bounded is the "
         "point, not the ceiling.\n\n"
         "Three things to carry to real data. **Baselines first:** fit the GC rule and the frozen probe on *your* labels before "
         "reading any fine-tuned number; if the probe already matches the fine-tuning, the representation was the answer. "
@@ -455,7 +560,40 @@ TEMPLATE = {
         "gain the head alone recovers; set `TRAINED_LAYERS = 12` and watch the validation MCC peak at epoch 1 and the "
         "adapter grow to the whole encoder; raise `EPOCHS` and watch the selection rule keep an early epoch while the "
         "training loss keeps falling; or bring your own CSV through BYOD and read the two baselines before the adapted "
-        "number.\n\n"
+        "number. To run one, change the field in Section 7 and run Sections 7–9 again (for BYOD, Sections 4–9): `adapt` "
+        "restores the pinned base blocks before it trains, and Sections 5 and 6 call `pipe.reset_to_base()` when the encoder "
+        "was adapted, so every experiment starts from the pinned weights, not from the previous adaptation. Each run "
+        "replaces the default report and adapter; to get back to the recorded result, restore the defaults and run "
+        "Sections 7–9 again.\n\n"
+        '## Troubleshooting\n\n'
+        '- **Section 1 stops with "This notebook needs a Linux x86_64 runtime"** — use Google Colab, Kaggle or a Linux x86_64 Jupyter server.\n'
+        '- **The uv wheel fails its size/SHA-256 check, or a download in Section 1 times out** — run Section 1 again; a complete environment is reused and an incomplete one is finished. If it repeats, `files.pythonhosted.org` or `pypi.org` is blocked or altered.\n'
+        '- **You re-ran Section 1 on its own** — nothing is lost: it keeps the running worker and every variable. After a session restart, run from the top.\n'
+        '- **"The isolated environment\'s Python process exited"** — usually out of memory; restart the session and choose **Run all**.\n'
+        '- **Section 3 reports a size or SHA-256 mismatch (weights or one of the two model-code files)** — the message names the file. Delete the folder Section 3 prints as `weights_dir` and run Section 3 again; never edit the model-code files.\n'
+        '- **A verdict line says the adapted model did not beat the probe or a baseline** — on the default path that is a finding worth recording (the recorded run gained 0.06 MCC); on your data read the baselines first.\n'
+        '- **CUDA out of memory in Section 7** — set `TRAINED_LAYERS = 1` and run Sections 6–9 again (numbers will differ from the recorded run).\n'
+        '- **BYOD: "BYOD path … does not exist" / "the upload dialog exists only in Google Colab" / "Upload exactly one …"** — set `BYOD_PATH` to a CSV in the runtime (it works on Kaggle and Jupyter); on Colab an empty path opens the dialog, and a cancelled dialog stops with that message.\n'
+        '- **BYOD: a `load_byod_dataset` or `validate_dataset` refusal** — it names the row and the rule (alphabet, length 12..6,000, label 0/1, duplicate id, both labels needed for training).\n\n'
+        '## Glossary\n\n'
+        '- **6-mer token** — the unit the tokenizer reads: six bases at a time (251 bases → 47 tokens); `N` is tokenised base by base.\n'
+        "- **Mean-pooled embedding** — the average of the encoder's token vectors: one 512-d representation per sequence, not a prediction.\n"
+        '- **Masked prediction** — the pre-training objective: a distribution over 6-mers at a masked position; not a classifier.\n'
+        "- **Remote code** — the checkpoint's own `modeling_esm.py` and `esm_config.py`, digest-verified before they are imported.\n"
+        '- **GC-threshold baseline** — a single cut on GC fraction fitted on the training split; reads composition only.\n'
+        '- **Frozen probe** — a logistic regression on the frozen embeddings: what the pretrained representation alone knows.\n'
+        '- **Accuracy / MCC** — share correct; the Matthews correlation, 0 for any constant or chance predictor and symmetric in the two classes.\n'
+        '- **Epoch / validation selection** — one pass over the training windows; keeping the epoch with the highest validation MCC.\n'
+        '- **Held-out test split** — windows never used for training or selection; no sequence appears in two splits.\n'
+        '- **Adapter / reload parity** — the head and trained blocks only, overlaid on the pinned base; the reloaded model gives the same labels.\n'
+        "- **CC BY-NC-SA 4.0** — the weights' licence: attribution, non-commercial, share-alike; the adapter inherits it.\n"
+        '- **Isolated environment** — the separate Python 3.12.12 environment Section 1 builds from the hash lock; every later cell runs there.\n'
+        '- **BYOD** — bring your own data: your labelled sequences through the same cells.\n\n'
+        '## Conclusion (your notes)\n\nOptional — fill in from **your** run:\n\n'
+        '- Majority ___, GC rule ___, frozen probe ___, adapted ___ (test MCC); the verdict was ___.\n'
+        '- The kept epoch was ___; the later epochs were ___ on validation.\n'
+        '- One window the GC rule got wrong and the classifier got right: ___.\n'
+        '- One reason not to trust this gain on my own sequences yet: ___.\n\n'
         "## References\n\n"
         "- Repository README: https://github.com/kurtvalcorza/nucleotide-transformer-genomics-pipeline/blob/main/README.md\n"
         "- Repository model card: https://github.com/kurtvalcorza/nucleotide-transformer-genomics-pipeline/blob/main/MODEL_CARD.md\n"
@@ -465,6 +603,6 @@ TEMPLATE = {
         "- Nucleotide Transformer (Dalla-Torre et al., Nature Methods 2024): https://doi.org/10.1038/s41592-024-02523-z\n"
         "- Genomic Benchmarks (Grešová et al., BMC Genomic Data 2023; Apache-2.0): https://github.com/ML-Bioinfo-CEITEC/genomic_benchmarks — human non-TATA promoters from the Eukaryotic Promoter Database\n"
         "- GRCh38 reference genome via Ensembl REST: https://rest.ensembl.org/\n"
-        "- DIMER Notebook Specification 2.0 and Model Card Specification 1.1 (fleet specs in the ml-worker repository)"
+        "- DIMER Notebook Specification 2.2 and Model Card Specification 1.1 (fleet specs in the ml-worker repository)"
     ),
 }

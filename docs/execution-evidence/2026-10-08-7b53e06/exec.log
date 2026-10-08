@@ -1,0 +1,68 @@
+[colab] Parsing notebook '/home/kurt/colab-runs/nucleotide-transformer-genomics-pipeline-7b53e06-1c6973/nucleotide_transformer_colab_7b53e06_colab-cli-t4.ipynb'...
+[colab] Executing cell 1/12 - Infrastructure: build (or reuse) the isolated environment and route later cells to it...
+{'isolated_environment': '/content/dimer_isolated_env_8eb0c3a61bb1', 'reused': False, 'isolated_python': '3.12.12', 'kernel_python': '3.13.15', 'locked_packages': 47, 'setup_seconds': 51}
+{'routed_to': '/content/dimer_isolated_env_8eb0c3a61bb1/bin/python', 'worker_pid': 3527, 'worker_reused': False}
+[colab] Executing cell 2/12 - Infrastructure: record the runtime...
+{'notebook_source': {'repository': 'nucleotide-transformer-genomics-pipeline', 'repository_revision': 'b7866c7da5658e87ce3c78e8aff8e1d6374fa06e', 'embedded_module': 'src/nucleotide_transformer_genomics_pipeline/pipeline.py', 'embedded_modules': ['src/nucleotide_transformer_genomics_pipeline/metrics.py', 'src/nucleotide_transformer_genomics_pipeline/pipeline.py', 'src/nucleotide_transformer_genomics_pipeline/samples.py'], 'module_sha256': '1b69d70c3d780a530add76f65efd61c01d59a82ce1d0f5bccc8d5d651be9d0e4', 'generator': 'build_notebook.py/2.2', 'notebook_spec': '2.2'}, 'python': '3.12.12', 'executable': '/content/dimer_isolated_env_8eb0c3a61bb1/bin/python', 'torch': '2.14.0+cu130', 'transformers': '4.57.6', 'cuda': True}
+[colab] Executing cell 3/12 - nucleotide_transformer-08...
+[colab] Executing cell 4/12 - nucleotide_transformer-10...
+[colab] Executing cell 5/12 - nucleotide_transformer-12...
+[colab] Executing cell 6/12 - Infrastructure: stage and digest-verify the pinned snapshot, then load the model...
+{'model_id': 'InstaDeepAI/nucleotide-transformer-v2-50m-multi-species', 'revision': '81b29e5786726d891dbf929404ef20adca5b36f1', 'license': 'cc-by-nc-sa-4.0', 'files': 8, 'total_bytes': 223752120}
+{'weights_dir': '/content/weights/nt-v2-50m-multi-species', 'fetched': ['README.md', 'config.json', 'esm_config.py', 'model.safetensors', 'modeling_esm.py', 'special_tokens_map.json', 'tokenizer_config.json', 'vocab.txt']}
+{'verified_files': 8, 'revision': '81b29e5786726d891dbf929404ef20adca5b36f1'}
+{'device': 'cuda:0', 'revision': '81b29e5786726d891dbf929404ef20adca5b36f1', 'weights_dir': '/content/weights/nt-v2-50m-multi-species', 'weight_sha256': '17e75af297556ea5...', 'remote_code_executed': True, 'encoder_is_base': True}
+[colab] Executing cell 7/12 - nucleotide_transformer-16...
+{'data_source': 'Genomic Benchmarks - human non-TATA promoters (interval lists) over the GRCh38 reference: ML-Bioinfo-CEITEC/genomic_benchmarks@605d8539830e (Apache-2.0 (interval lists; Grešová et al. 2023, https://github.com/ML-Bioinfo-CEITEC/genomic_benchmarks); sequence bases from the GRCh38 human reference genome (Genome Reference Consortium, public domain) via Ensembl REST)', 'raw_rows': {'origin_rows': {'train': 27097, 'test': 9034}, 'inline_records': 2200, 'pinned_digest': 'd913c4bd4cf74199...', 'seconds': 0.016}, 'splits': {'train': 1600, 'validation': 200, 'test': 400}, 'reference': 'GRCh38 (Ensembl coord_system_version GRCh38; origin intervals are 0-based half-open)', 'interval_bases': 251}
+{'train': {'n': 1600, 'labels': {'0': 800, '1': 800}, 'bases': {'min': 251, 'max': 251}, 'gc_fraction': {'min': 0.2311, 'mean': 0.5535, 'max': 0.8685}, 'mean_gc_by_label': {0: 0.4816, 1: 0.6254}, 'n_with_N': 0, 'digest': '3e4fe9685bab8554...'}}
+{'validation': {'n': 200, 'labels': {'0': 100, '1': 100}, 'bases': {'min': 251, 'max': 251}, 'gc_fraction': {'min': 0.2351, 'mean': 0.5441, 'max': 0.8367}, 'mean_gc_by_label': {0: 0.4793, 1: 0.609}, 'n_with_N': 0, 'digest': 'ccb6ac988348e1f2...'}}
+{'test': {'n': 400, 'labels': {'0': 200, '1': 200}, 'bases': {'min': 251, 'max': 251}, 'gc_fraction': {'min': 0.2311, 'mean': 0.5506, 'max': 0.8645}, 'mean_gc_by_label': {0: 0.4789, 1: 0.6223}, 'n_with_N': 0, 'digest': '8384c09b5cba0750...'}}
+{'example': {'id': 'FP004746', 'label': 1, 'region': 'chr4', 'start': 67558547, 'end': 67558798, 'strand': '+', 'sequence': 'CTAAGCACATGTGGATTACCCAGAGATTGCCCTCTGAAAGTCAGTCTACACCTGTTCTTT...'}}
+{'probe': 'duplicate id', 'rejected': "duplicate id 'same'"}
+{'probe': 'base outside A/C/G/T/N', 'rejected': "records[0]: sequence contains characters outside A/C/G/T/N: ['U']"}
+{'probe': 'too short', 'rejected': 'records[0]: 7 bases; 12..6000 are required'}
+{'probe': 'one label only', 'rejected': 'a training split must contain both labels'}
+[colab] Executing cell 8/12 - nucleotide_transformer-19...
+{'ceilings': {'MIN_BASES': 12, 'MAX_BASES': 6000, 'MAX_TOKENS': 1000, 'MAX_SEQUENCES': 20000, 'MIN_RECORDS': 8, 'MAX_RECORDS': 20000, 'device': 'cuda:0', 'remote_code_executed': True}}
+{'input_manifest': {'n_sequences': 6, 'bases': {'min': 251, 'max': 300, 'total': 1604}, 'gc_fraction': {'min': 0.3586, 'max': 0.8645}, 'n_with_N': 0}, 'findings': 1}
+{'embed': {'n': 6, 'dimension': 512, 'seconds': 0.28, 'tokens': {'motif_x4': 51, 'same_bases_permuted': 51, 'FP015872': 47, 'FP006065': 47, 'FP000289': 47, 'FP009070': 47}, 'checks': {'one_vector_per_sequence': True, 'dimension': True, 'pooling': 'mean of the last hidden state over non-padding tokens'}}}
+{'motif_vs_permuted_cosine': 0.9879, 'motif_vs_held_out_cosines': [0.9738, 0.9781, 0.9515, 0.9692], 'reading': 'same bases, different order: the distance between the pair is what the model carries beyond composition (sample-sanity, not a measurement)'}
+{'masked_prediction': {'tokens': ['ATTCCG', 'ATTCCC', 'ATTCGG', 'ATTCCA', 'ATTCAG'], 'probabilities': [0.64054, 0.11347, 0.062689, 0.029963, 0.027496], 'position': 4}, 'reading': 'the pre-training objective: the distribution over 6-mers at the masked position'}
+{'predict_before_adapt': 'refused', 'message': 'no promoter head: call adapt() or load an artifact before predict()'}
+[colab] Executing cell 9/12 - nucleotide_transformer-22...
+{'majority_baseline': {'accuracy': 0.5, 'mcc': 0.0}, 'label': 1, 'n': 400}
+{'gc_threshold_baseline': {'accuracy': 0.715, 'mcc': 0.4308}, 'threshold': 0.5598, 'rule': 'GC >= threshold -> positive', 'train_accuracy': 0.7456}
+{'frozen_probe_test': {'accuracy': 0.815, 'mcc': 0.6315}, 'positive': {'precision': 0.8387, 'recall': 0.78, 'f1': 0.8083}, 'negative': {'precision': 0.7944, 'recall': 0.85, 'f1': 0.8213}, 'train_accuracy': 0.8975, 'probe': 'logistic regression on frozen mean-pooled embeddings', 'seconds': 4.2}
+{'frozen_verdict': 'probe > GC rule > majority'}
+[colab] Executing cell 10/12 - nucleotide_transformer-25...
+{'epoch': 0, 'train_loss': None, 'val_accuracy': 0.505, 'val_mcc': 0.0709, 'note': 'untrained head on the frozen encoder'}
+{'epoch': 1, 'train_loss': 0.5138, 'val_accuracy': 0.795, 'val_mcc': 0.6093}
+{'epoch': 2, 'train_loss': 0.3785, 'val_accuracy': 0.805, 'val_mcc': 0.6213}
+{'epoch': 3, 'train_loss': 0.3402, 'val_accuracy': 0.795, 'val_mcc': 0.6063}
+{'epoch': 4, 'train_loss': 0.295, 'val_accuracy': 0.78, 'val_mcc': 0.5769}
+{'epoch': 5, 'train_loss': 0.2266, 'val_accuracy': 0.765, 'val_mcc': 0.5332}
+{'epoch': 6, 'train_loss': 0.1393, 'val_accuracy': 0.8, 'val_mcc': 0.6124}
+{'trainable_parameters': 8660482, 'head_parameters': 263682, 'total_parameters': 56168654, 'layers': 2, 'best_epoch': 2, 'selection': 'highest validation MCC (ties: accuracy, earlier epoch)', 'loss': 'cross-entropy over the two labels', 'train_accuracy': 0.8594, 'seconds': 31.8}
+[colab] Executing cell 11/12 - nucleotide_transformer-28...
+{'accuracy': {'majority': 0.5, 'gc_threshold': 0.715, 'frozen_probe': 0.815, 'adapted': 0.8425}}
+{'mcc': {'majority': 0.0, 'gc_threshold': 0.4308, 'frozen_probe': 0.6315, 'adapted': 0.6934}}
+{'delta_vs_frozen_probe': {'accuracy': 0.0275, 'mcc': 0.0619}}
+{'delta_vs_gc_threshold': {'accuracy': 0.1275, 'mcc': 0.2626}}
+{'per_class': {'frozen_probe': {'positive': {'precision': 0.8387, 'recall': 0.78, 'f1': 0.8083}, 'negative': {'precision': 0.7944, 'recall': 0.85, 'f1': 0.8213}}, 'adapted': {'positive': {'precision': 0.9053, 'recall': 0.765, 'f1': 0.8293}, 'negative': {'precision': 0.7965, 'recall': 0.92, 'f1': 0.8538}}}}
+{'confusion_adapted': {'tp': 153, 'tn': 184, 'fp': 16, 'fn': 47}}
+{'verdict': {'n': 400, 'sample_kind': 'pinned promoter sample', 'small_sample': False, 'headline_metric': 'mcc', 'adapted': {'accuracy': 0.8425, 'mcc': 0.6934}, 'frozen_probe': {'accuracy': 0.815, 'mcc': 0.6315}, 'best_baseline': {'name': 'gc_threshold', 'accuracy': 0.715, 'mcc': 0.4308}, 'adapted_beats_frozen': True, 'adapted_beats_baselines': True, 'frozen_beats_baselines': True, 'mcc_gain_over_frozen': 0.0619, 'note': 'sample-sanity evidence on one seeded draw with no dispersion estimate; not a benchmark reproduction'}}
+{'report': 'outputs/nucleotide_transformer_evaluation_report.json', 'mcc_gain_over_frozen': 0.0619}
+[colab] Executing cell 12/12 - nucleotide_transformer-31...
+{'id': 'FP015872', 'region': 'chr17:62423696-62423947+', 'gc': 0.637, 'gc_rule': 1, 'adapted': 1, 'p_promoter': 0.851001, 'truth': 1}
+{'id': 'FP006065', 'region': 'chr5:177603442-177603693+', 'gc': 0.502, 'gc_rule': 0, 'adapted': 0, 'p_promoter': 0.353966, 'truth': 1}
+{'id': 'FP000289', 'region': 'chr1:22143046-22143297-', 'gc': 0.865, 'gc_rule': 1, 'adapted': 1, 'p_promoter': 0.993819, 'truth': 1}
+{'id': 'FP009070', 'region': 'chr9:93531955-93532206+', 'gc': 0.359, 'gc_rule': 0, 'adapted': 0, 'p_promoter': 0.090363, 'truth': 1}
+{'id': 'FP000686', 'region': 'chr1:47189985-47190236-', 'gc': 0.614, 'gc_rule': 1, 'adapted': 0, 'p_promoter': 0.355889, 'truth': 1}
+{'id': 'FP012593', 'region': 'chr12:132329497-132329748-', 'gc': 0.825, 'gc_rule': 1, 'adapted': 1, 'p_promoter': 0.9826, 'truth': 1}
+{'id': 'FP008976', 'region': 'chr9:74887429-74887680-', 'gc': 0.618, 'gc_rule': 1, 'adapted': 1, 'p_promoter': 0.962894, 'truth': 1}
+{'id': 'FP010265', 'region': 'chr10:118046639-118046890-', 'gc': 0.773, 'gc_rule': 1, 'adapted': 1, 'p_promoter': 0.993846, 'truth': 1}
+{'synthetic_pair': {'motif_x4': 0.77892, 'same_bases_permuted': 0.905421}, 'reading': 'same bases, different order; no truth exists for these'}
+{'artifact': 'outputs/nucleotide_transformer_adapter', 'format': 'org.valcorza.nt-v2-50m-multi-species.adapter.v1', 'license': 'cc-by-nc-sa-4.0', 'tensors': 32, 'bytes': 34645456, 'sha256': 'fe9305b0b53942b8...', 'base_remote_code_files': ['modeling_esm.py', 'esm_config.py']}
+{'reload_parity': {'identical_labels': 64, 'of': 64, 'max_probability_difference': 0.0}, 'reloaded_best_epoch': 2, 'reloaded_layers': 2}
+['nucleotide_transformer_adapter', 'nucleotide_transformer_embeddings.csv', 'nucleotide_transformer_evaluation_report.json', 'nucleotide_transformer_input_manifest.json', 'nucleotide_transformer_result.json', 'nucleotide_transformer_train.csv']
+[colab] Saving notebook with outputs to '/home/kurt/colab-runs/nucleotide-transformer-genomics-pipeline-7b53e06-1c6973/nucleotide_transformer_colab_7b53e06_colab-cli-t4_output.ipynb'...

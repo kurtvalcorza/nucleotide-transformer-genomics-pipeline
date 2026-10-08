@@ -283,6 +283,10 @@ class NucleotideTransformerPipeline:
     weight_sha256: str | None = None
     adapter: dict[str, Any] | None = None
     remote_code_executed: bool = True
+    # Pinned-base copies of every encoder tensor that adapt() or load_artifact() has overwritten, taken just before
+    # the first overwrite. adapt() restores them before training and reset_to_base() restores them on request, so no
+    # later probe or adaptation silently starts from an already fine-tuned encoder.
+    _base_tensors: dict[str, Any] = field(default_factory=dict, repr=False)
 
     @classmethod
     def from_pretrained(
@@ -322,6 +326,33 @@ class NucleotideTransformerPipeline:
             raise RuntimeError("no model loaded: construct with from_pretrained or from_artifact")
         return self._model, self._tokenizer
 
+    def _remember_base(self, names: Sequence[str]) -> None:
+        """Keep a copy of each named encoder tensor before its first overwrite (it still holds the pinned base)."""
+        model, _tokenizer = self._require_model()
+        state = model.state_dict()
+        for name in names:
+            if name not in self._base_tensors:
+                self._base_tensors[name] = state[name].detach().clone()
+
+    @property
+    def encoder_is_base(self) -> bool:
+        """True while every encoder tensor equals the pinned base (no adapter overlaid or trained in place)."""
+        return not self._base_tensors
+
+    def reset_to_base(self) -> list[str]:
+        """Restore every encoder tensor that adapt() or load_artifact() overwrote to the pinned base, and drop the
+        head and adapter. Returns the restored tensor names (empty when nothing was changed)."""
+        model, _tokenizer = self._require_model()
+        restored = sorted(self._base_tensors)
+        if restored:
+            model.load_state_dict(dict(self._base_tensors), strict=False)
+        self._base_tensors = {}
+        for param in model.parameters():
+            param.requires_grad_(False)
+        model.eval()
+        self._head, self.adapter = None, None
+        return restored
+
     def _encode(self, sequences: Sequence[str]) -> Any:
         _model, tokenizer = self._require_model()
         return tokenizer(list(sequences), return_tensors="pt", padding=True).to(self.device)
@@ -337,7 +368,8 @@ class NucleotideTransformerPipeline:
         return [len(tokenizer(s)["input_ids"]) for s in checked]
 
     def embed(self, sequences: Sequence[str], *, batch_size: int = DEFAULT_BATCH_SIZE) -> list[list[float]]:
-        """One mean-pooled 512-d vector per sequence (padding excluded) from the frozen encoder."""
+        """One mean-pooled 512-d vector per sequence (padding excluded) from the encoder as it stands: the pinned
+        base until adapt() or load_artifact() overwrites blocks (see `encoder_is_base`; `reset_to_base` undoes it)."""
         checked = validate_sequences(sequences)
         self._require_model()
         import torch
@@ -386,13 +418,19 @@ class NucleotideTransformerPipeline:
     ) -> dict[str, Any]:
         """Logistic regression on standardised frozen mean-pooled embeddings (L-BFGS, L2-penalised, no seed
         dependence): the model's weights are untouched, so this is what the pre-trained representation alone
-        knows about the task. Returns the test metrics plus the fitted probe's train accuracy."""
+        knows about the task. Returns the test metrics plus the fitted probe's train accuracy. Refuses while the
+        encoder carries trained or overlaid blocks: that would not be the frozen model (call `reset_to_base`)."""
         from .metrics import classification_metrics
         from .samples import validate_dataset
 
         train_checked = validate_dataset(train, require_both_labels=True)["records"]
         test_checked = validate_dataset(test, min_records=1)["records"]
         self._require_model()
+        if not self.encoder_is_base:
+            raise RuntimeError(
+                f"the encoder carries {len(self._base_tensors)} adapted tensors, so a probe would not measure the frozen "
+                "model: call reset_to_base() first (it restores the pinned base and drops the adapter)"
+            )
         import torch
 
         started = time.perf_counter()
@@ -481,8 +519,9 @@ class NucleotideTransformerPipeline:
         trained with cross-entropy, AdamW (no weight decay), gradient clipping at 1.0, seeded shuffling and no
         scheduler; embeddings and the other blocks stay frozen. Epoch 0 records the untrained head's
         validation metrics; the epoch with the highest validation MCC (ties: accuracy, then the earlier epoch)
-        is kept, or the final one without a validation split. On any exception the frozen weights are
-        restored and the previous adapter, if any, is kept."""
+        is kept, or the final one without a validation split. Training always starts from the pinned base: blocks an
+        earlier adapt() or load_artifact() overwrote are restored first. On any exception the encoder, head and
+        adapter return to their state on entry."""
         model, _tokenizer = self._require_model()  # refuse before importing torch
         from .metrics import classification_metrics
         from .samples import validate_dataset
@@ -499,8 +538,16 @@ class NucleotideTransformerPipeline:
         import torch
 
         name_set = set(names)
-        frozen_state = {k: v.detach().clone() for k, v in model.state_dict().items() if k in name_set}
+        # The state on entry (the trained names plus any block an earlier adapt/load_artifact overwrote), restored
+        # on failure; then every overwritten block goes back to the pinned base, so training always starts there.
+        touched = name_set | set(self._base_tensors)
+        frozen_state = {k: v.detach().clone() for k, v in model.state_dict().items() if k in touched}
+        previous_base = dict(self._base_tensors)
         previous_head, previous_adapter = self._head, self.adapter
+        if self._base_tensors:
+            model.load_state_dict(dict(self._base_tensors), strict=False)
+            self._base_tensors = {}
+        self._remember_base(names)
         cudnn_flags = (torch.backends.cudnn.deterministic, torch.backends.cudnn.benchmark)
         torch.backends.cudnn.deterministic, torch.backends.cudnn.benchmark = True, False  # repeatable on one device
         history: list[dict[str, Any]] = []
@@ -576,6 +623,7 @@ class NucleotideTransformerPipeline:
                 param.requires_grad_(False)
             model.eval()
             self._head, self.adapter = previous_head, previous_adapter
+            self._base_tensors = previous_base
             raise
         finally:
             torch.backends.cudnn.deterministic, torch.backends.cudnn.benchmark = cudnn_flags
@@ -668,6 +716,10 @@ class NucleotideTransformerPipeline:
             target = head_state[name[len(HEAD_PREFIX) :]] if name.startswith(HEAD_PREFIX) else state[name]
             if tuple(tensor.shape) != tuple(target.shape):
                 raise ValueError(f"artifact tensor {name} has shape {tuple(tensor.shape)}, base has {tuple(target.shape)}")
+        if self._base_tensors:  # an earlier adapter's blocks go back to the base before this one is overlaid
+            model.load_state_dict(dict(self._base_tensors), strict=False)
+            self._base_tensors = {}
+        self._remember_base(expected_encoder)
         model.load_state_dict({k: v.to(state[k].device, state[k].dtype) for k, v in tensors.items() if not k.startswith(HEAD_PREFIX)}, strict=False)
         head.load_state_dict({k[len(HEAD_PREFIX) :]: v.to(self.device) for k, v in tensors.items() if k.startswith(HEAD_PREFIX)})
         for param in head.parameters():
