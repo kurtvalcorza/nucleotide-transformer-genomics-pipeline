@@ -74,7 +74,7 @@ The default data is the human non-TATA promoter benchmark of Genomic Benchmarks 
 
 ## Release status
 
-**Candidate** — the `E2E` notebook was regenerated for the 2026-10-02 notebook review (isolated hash-locked environment, no restart; review fixes) and the new blob has no recorded hosted run yet. The earlier blob `c1aa7361` (at `3e37b6c`) ran on a clean Kaggle Tesla T4 on 2026-09-20 only with a manual restart (11/11 ok with 1 restart after the install cell, 248.3 s); the records are in `docs/release-verification.md` and `STATUS.md`. Static and unit checks — including the standalone generator parity checks — are necessary but were never the evidence; the hosted clean-runtime run is.
+**Candidate** — the `E2E` notebook was regenerated for the 2026-10-02 notebook review (isolated hash-locked environment, no restart; review fixes); the review-fix blob `fc2fd3663dfa` (commit `7b53e06`) completed one pass with no restart and 0 errors on a fresh Colab Tesla T4 on 2026-10-08 (Colab CLI sequential execution, 12/12 code cells, 126.2 s; test MCC adapted 0.6934 against frozen probe 0.6315, GC rule 0.4308 and majority 0.0, epoch 2 kept, reload parity 64/64); REL12 (hosted BYOD) is pending. The earlier blob `c1aa7361` (at `3e37b6c`) ran on a clean Kaggle Tesla T4 on 2026-09-20 only with a manual restart (11/11 ok with 1 restart after the install cell, 248.3 s); the records are in `docs/release-verification.md` and `STATUS.md`. Static and unit checks — including the standalone generator parity checks — are necessary but were never the evidence; the hosted clean-runtime run is.
 
 ## Checks
 
