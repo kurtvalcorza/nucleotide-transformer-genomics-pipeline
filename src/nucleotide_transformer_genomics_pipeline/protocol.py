@@ -7,7 +7,7 @@ Three things live here, all pure Python so CI can test them without a model:
   differ. Only a pre-registered run may score the fresh test; every other run is exploratory and is compared on
   validation (and on the labelled exposed development test) only.
 * ``select_trained_layers`` - the pre-registered validation grid's selection rule over ``GRID_LAYERS``.
-* ``test_look`` - the label a fresh-test score carries: "pre-registered evaluation (this runtime)", "reproduction
+* ``test_look`` - the label a fresh-test score carries: "reproduction of the pre-registered evaluation" (while one is recorded), "pre-registered evaluation (this runtime)", "reproduction
   (this runtime)" or "not scored (exploratory)"; ``adapted_state_check`` - the model in memory is the selected one.
 """
 
@@ -36,9 +36,13 @@ HEAD_PARAMETERS = 263_682  # the mean-pooled head (512 -> 512 tanh -> 2) the pre
 BOOTSTRAP_RESAMPLES = 2_000  # paired bootstrap of the fresh-test MCC difference (Amendment 2 item 4)
 BOOTSTRAP_SEED = 0
 # A runtime cannot know about other runtimes (SCORE_ONCE_RULE item 8): which run is THE evaluation of record, and which
-# runs are its reproductions, is recorded in docs/release-verification.md, never decided in the notebook.
+# runs are its reproductions, is recorded in docs/release-verification.md.
 RECORD_OF_EVALUATIONS = "docs/release-verification.md"
+# The release-verification record of the first pre-registered hosted run (None: none recorded yet). While it is set, a
+# pre-registered fresh-test scoring in a new runtime is labelled a reproduction of that evaluation (SCORE_ONCE_RULE item 3).
+PREREGISTERED_EVALUATION_RECORD: str | None = "docs/release-verification.md: Colab CLI T4, 2026-10-17, commit d606232, blob b28c43a7"
 LOOK_PREREGISTERED = "pre-registered evaluation (this runtime)"
+LOOK_RECORDED_REPRODUCTION = "reproduction of the pre-registered evaluation"
 LOOK_REPRODUCTION = "reproduction (this runtime)"
 LOOK_EXPLORATORY = "not scored (exploratory)"
 LOOK_STATE_FAILED = "not scored (model-state check failed)"
@@ -113,15 +117,19 @@ def select_trained_layers(results: Mapping[int, Mapping[str, Any]]) -> dict[str,
     return {"selected_layers": selected, "reason": reason, "validation_mcc": {str(k): round(v, 4) for k, v in mcc.items()}, "tolerance": GRID_TOLERANCE, "incumbent": GRID_INCUMBENT}
 
 
-def test_look(preregistered: bool, earlier_preregistered_scorings: int = 0, state_matches: bool = True) -> str:
-    """The label a fresh-test score carries (SCORE_ONCE_RULE items 3, 5 and 8): the first pre-registered scoring in this
-    runtime, a later identical one in the same runtime, a pre-registered run whose model-state check failed (not
-    scored), or an exploratory run. Which hosted run is the evaluation of record is in ``RECORD_OF_EVALUATIONS``."""
+def test_look(preregistered: bool, earlier_preregistered_scorings: int = 0, state_matches: bool = True, recorded_evaluation: str | None = PREREGISTERED_EVALUATION_RECORD) -> str:
+    """The label a fresh-test score carries (SCORE_ONCE_RULE items 3, 5 and 8): an exploratory run; a pre-registered run
+    whose model-state check failed (not scored); a later identical scoring in the same runtime; the first pre-registered
+    scoring in this runtime while an evaluation of record is recorded (``recorded_evaluation``, default
+    ``PREREGISTERED_EVALUATION_RECORD``), which is a reproduction of it; or, with none recorded, the pre-registered
+    evaluation. The record and its reproductions are listed in ``RECORD_OF_EVALUATIONS``."""
     if not preregistered:
         return LOOK_EXPLORATORY
     if not state_matches:
         return LOOK_STATE_FAILED
-    return LOOK_REPRODUCTION if earlier_preregistered_scorings > 0 else LOOK_PREREGISTERED
+    if earlier_preregistered_scorings > 0:
+        return LOOK_REPRODUCTION
+    return LOOK_RECORDED_REPRODUCTION if recorded_evaluation else LOOK_PREREGISTERED
 
 
 def adapted_state_check(adapter: Mapping[str, Any] | None, adapt_result: Mapping[str, Any], validation: Mapping[str, Any]) -> dict[str, Any]:
@@ -156,7 +164,7 @@ def exploratory_suffix(stem: str, existing: Sequence[str], kind: str = "explorat
 def output_suffix(stem: str, existing: Sequence[str], look: str) -> str:
     """'' for the first pre-registered evaluation in this runtime, ``_reproduction_<n>`` for a same-runtime reproduction,
     ``_exploratory_<n>`` for everything that did not score the fresh test."""
-    if look == LOOK_PREREGISTERED:
+    if look in (LOOK_PREREGISTERED, LOOK_RECORDED_REPRODUCTION):  # the first pre-registered scoring in this runtime
         return ""
     return exploratory_suffix(stem, existing, "reproduction" if look == LOOK_REPRODUCTION else "exploratory")
 

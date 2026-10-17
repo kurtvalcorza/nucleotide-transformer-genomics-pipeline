@@ -123,7 +123,8 @@ def test_preregistration_names_every_differing_setting():
 
 def test_test_look_labels_and_exploratory_suffix():
     assert protocol.test_look(False) == "not scored (exploratory)"
-    assert protocol.test_look(True, 0) == "pre-registered evaluation (this runtime)"
+    assert protocol.test_look(True, 0, recorded_evaluation=None) == "pre-registered evaluation (this runtime)"
+    assert protocol.test_look(True, 0) == "reproduction of the pre-registered evaluation"
     assert protocol.test_look(True, 1) == "reproduction (this runtime)"
     assert protocol.test_look(True, 0, state_matches=False) == "not scored (model-state check failed)"
     assert protocol.output_suffix("s", [], protocol.LOOK_PREREGISTERED) == ""
@@ -217,12 +218,13 @@ def test_default_settings_score_the_fresh_test_and_a_rerun_is_a_reproduction(nb,
     assert ns["protocol_check"] == {"preregistered": True, "settings_differing": []}
     assert ns["grid"]["selected_layers"] == 2  # the stand-in's 0.50 / 0.60 / 0.61: frozen beaten by 0.11, 12 ahead of 2 by only 0.01
     report = json.loads((tmp_path / "outputs" / "nucleotide_transformer_evaluation_report.json").read_text(encoding="utf-8"))
-    assert report["test_look"] == "pre-registered evaluation (this runtime)" and report["fresh_test"]["n"] == 400
+    assert report["test_look"] == "reproduction of the pre-registered evaluation" and report["fresh_test"]["n"] == 400
+    assert report["preregistered_evaluation_record"] == protocol.PREREGISTERED_EVALUATION_RECORD
     assert "fresh" in ns["pipe"].scored and "fresh-probe" in ns["pipe"].scored
     assert report["fresh_test"]["mcc_difference_adapted_minus_probe"]["resamples"] == 2000
     ns = _run_sections(nb, tmp_path, monkeypatch, ns=ns)
     first = json.loads((tmp_path / "outputs" / "nucleotide_transformer_evaluation_report.json").read_text(encoding="utf-8"))
-    assert first["test_look"] == "pre-registered evaluation (this runtime)"  # m4: a reproduction never overwrites it
+    assert first["test_look"] == "reproduction of the pre-registered evaluation"  # m4: a reproduction never overwrites it
     again = json.loads((tmp_path / "outputs" / "nucleotide_transformer_evaluation_report_reproduction_1.json").read_text(encoding="utf-8"))
     assert again["test_look"] == "reproduction (this runtime)" and ns["PREREGISTERED_SCORINGS"] == 2
 
@@ -352,3 +354,30 @@ def test_stamped_revision_contains_the_carried_modules(nb):
         pytest.skip(f"stamped revision {revision} not in this checkout")
     text = "".join(subprocess.run(["git", "show", f"{revision}:{rel}"], cwd=ROOT, capture_output=True, check=True).stdout.decode("utf-8") for rel in meta["modules"])
     assert hashlib.sha256(text.encode("utf-8")).hexdigest() == meta["module_sha256"], f"carried modules differ from {revision}"
+
+
+def test_the_evaluation_of_record_is_named_and_a_later_identical_run_is_a_reproduction():
+    """SCORE_ONCE_RULE items 3 and 7: the first pre-registered hosted run (Colab CLI T4, 2026-10-17, commit d606232,
+    notebook blob b28c43a7) is THE evaluation; a later run with identical settings labels itself a reproduction."""
+    record = protocol.PREREGISTERED_EVALUATION_RECORD
+    assert record is not None
+    for part in ("docs/release-verification.md", "Colab CLI T4", "2026-10-17", "d606232", "b28c43a7"):
+        assert part in record, part
+    assert protocol.test_look(True) == protocol.LOOK_RECORDED_REPRODUCTION == "reproduction of the pre-registered evaluation"
+    assert protocol.test_look(True, 0, recorded_evaluation=None) == protocol.LOOK_PREREGISTERED
+    assert protocol.test_look(True, 1) == protocol.LOOK_REPRODUCTION
+    assert protocol.test_look(False) == protocol.LOOK_EXPLORATORY  # a changed setting never scores, record or not
+    assert protocol.test_look(True, 0, state_matches=False) == protocol.LOOK_STATE_FAILED
+    assert protocol.output_suffix("s", [], protocol.LOOK_RECORDED_REPRODUCTION) == ""
+    assert protocol.output_suffix("s", ["s_evaluation_report.json"], protocol.LOOK_REPRODUCTION) == "_reproduction_1"
+    doc = (ROOT / "docs" / "release-verification.md").read_text(encoding="utf-8")
+    assert "d606232" in doc and "b28c43a7" in doc
+
+
+def test_notebook_quotes_the_fresh_test_result_not_the_exposed_gain(nb):
+    """Row 58 requote: the conclusion states the fresh-test result and its unresolved interval; timings are measured."""
+    text = "\n".join("".join(c["source"]) for c in nb["cells"] if c["cell_type"] == "markdown")
+    assert "gained 0.06 MCC" not in text and "2–3 min" not in text and "0.6628 (epoch 4)" not in text
+    assert "CPU build record of this" not in text
+    for quote in ("0.664", "0.636", "−0.028 to +0.086", "not resolved", "12 blocks 0.6621 (epoch 1)", "138.6 s", "252.1 s"):
+        assert quote in text, quote

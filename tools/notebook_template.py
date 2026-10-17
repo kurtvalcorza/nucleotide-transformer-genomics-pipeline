@@ -7,8 +7,9 @@ held-out result is a fresh locus-disjoint 400-window test scored only under the 
 origin's locus overlap are stated, BYOD refusals are one message that invalidates the run (DAT20), and the notebook
 declares NOTEBOOK_SPEC 2.5, its kind and the DOC17 use notice.
 
-Numbers quoted in the prose name their source: the CPU build record of this revision (2026-10-17, workstation CPU,
-pending the hosted T4 run) or the Colab T4 run of commit 7b53e06 (2026-10-08) for the pre-fix notebook.
+Numbers quoted in the prose name their source (REL13): the pre-registered evaluation of record (Colab CLI T4,
+2026-10-17, commit d606232, notebook blob b28c43a7), the CPU development look of 2026-10-17 where named, or the Colab
+T4 run of commit 7b53e06 (2026-10-08) for the pre-fix notebook.
 """
 
 
@@ -100,8 +101,9 @@ TEMPLATE = {
         "the 400-window **fresh test** under the pre-registered settings (baselines, frozen probe and the adapted model), exports "
         "the adapter as safetensors with a manifest, and reloads that artifact into a fresh pipeline to verify prediction parity. "
         "The default path needs no repository clone, no DIMER worker or service, no credential, no upload dialog and no "
-        "configuration edit (NOTEBOOK_SPEC 2.5 §5). The grid trains three configurations: about 2–3 min on a T4 (estimated from "
-        "the 31.8 s two-block run of 2026-10-08) and 16 min on the build workstation's CPU (2026-10-17); every "
+        "configuration edit (NOTEBOOK_SPEC 2.5 §5). The grid trains three configurations: 138.6 s on a T4 (26.2 / 37.8 / 74.6 s for 0 / 2 / 12 "
+        "blocks; 252.1 s for the whole run; REL13 evaluation of record: Colab CLI T4, 2026-10-17, commit `d606232`) and 16 min on the build workstation's CPU (REL13 CPU "
+        "development look, 2026-10-17); every "
         "sequence is 47 tokens long, so CPU is workable — a CUDA runtime is used automatically when present."
     ),
     "byod": (
@@ -133,8 +135,9 @@ TEMPLATE = {
         "validation by a grid fixed in advance (`docs/nucleotide-transformer-preregistration.md`): 0, 2 or 12 trained blocks, "
         "keep the frozen encoder unless beaten by more than 0.03 validation MCC, otherwise keep 2 unless beaten by at least "
         "0.03. The held-out answer comes from a **fresh test** of 400 windows that had never been scored, at least 251 bases from "
-        "every other window on the genome, and it is scored only under those pre-registered settings. The fresh test is scored for the "
-        "first time on the hosted T4 run of this revision; its numbers, and which run is the evaluation of record, are in "
+        "every other window on the genome, and it is scored only under those pre-registered settings. The fresh test was first scored on the "
+        "hosted Colab CLI T4 run of 2026-10-17 (commit `d606232`, notebook blob `b28c43a7`), the pre-registered evaluation of "
+        "record (REL13): fresh-test MCC adapted 0.664, frozen probe 0.636, GC rule 0.36. The record and any reproductions are in "
         "`docs/release-verification.md`. Nothing here is a claim about your sequences: it is one split of one benchmark's "
         "labelling convention.\n\n"
         "**Pre-training overlap (DAT9).** The model was pre-trained, without labels, on 850 genomes "
@@ -150,7 +153,7 @@ TEMPLATE = {
         "adapter written in Section 9 is safetensors too."
     ),
     "guided": {"opening": [(
-        "**Who this notebook is for.** A learner who knows basic Python, has used Colab or Jupyter and knows what a DNA sequence and GC content are, and wants to see how a genomic language model turns sequences into representations, how to test honestly whether fine-tuning it beats simple baselines, and how to export the result under its licence. The audience is bioinformatics students and practitioners preparing their own labelled sequences; no prior experience with the Nucleotide Transformer, transformers or fine-tuning is assumed — each term is explained where it first matters and again in the **Glossary**. CPU is workable (every window is 47 tokens); a T4 is faster.\n\n**Input → Model → Output.**\n\n| | Representation | Bounded fine-tuning |\n|---|---|---|\n| Input | DNA strings of A/C/G/T/N, 12..6,000 bases | labelled records `{{id, sequence, label}}`: 2,200 human promoter / non-promoter windows of 251 bases carried inline (1,600 train, 200 validation, 400 exposed development test) plus a 400-window fresh test, or your own CSV |\n| Model | the Nucleotide Transformer v2 50M encoder (6-mer tokens, 12 blocks, loaded with its digest-verified model code) | a fresh mean-pooled head plus the last 0, 2 or 12 encoder blocks (chosen on validation by a pre-registered grid) trained with cross-entropy; the rest frozen |\n| Output | one 512-d mean-pooled vector per sequence; a masked 6-mer distribution | a promoter label and probability per window, fresh-test accuracy and MCC beside two baselines and a frozen probe, and a CC BY-NC-SA 4.0 safetensors adapter |\n\n**How to use this notebook.** Choose a runtime, then **Runtime → Run all**. Run all completes in one pass: Section 1 installs nothing into the notebook's own Python, so no restart is needed (the recorded hosted run of the previous version needed one; this version removes it). Sections 1–3 are **infrastructure** — the isolated environment, the carried package and the verified snapshot with its model code — and their cells are collapsed; you may run them without studying them. The learning path starts in Section 4. Form fields (`# @param`) are the only values meant to be edited, and the defaults reproduce the recorded run. Before each principal result the notebook asks you to **Predict**; after it comes a collapsible **Check your reasoning** with a worked answer from the CPU build record of this notebook revision (2026-10-17, workstation CPU, seed 0; the hosted T4 run of this revision is pending, so a T4 may differ in the last digits). **Troubleshooting**, a **Glossary** and a **Conclusion** template are at the end. Writing your predictions down is optional.\n\n**Roadmap:** 1–3 infrastructure → 4 the promoter sample, provenance, the split and where it overlaps on the genome *(evaluation practice)* → 5 representations and masked prediction *(core concept: a representation is not a prediction)* → 6 two baselines and the frozen probe *(evaluation practice)* → 7 bounded fine-tuning and the pre-registered depth grid *(core concept: what is trained, and choosing it on validation)* → 8 the fresh test and the exposed development test → 9 predictions, export and reload *(engineering)* → conclude."
+        "**Who this notebook is for.** A learner who knows basic Python, has used Colab or Jupyter and knows what a DNA sequence and GC content are, and wants to see how a genomic language model turns sequences into representations, how to test honestly whether fine-tuning it beats simple baselines, and how to export the result under its licence. The audience is bioinformatics students and practitioners preparing their own labelled sequences; no prior experience with the Nucleotide Transformer, transformers or fine-tuning is assumed — each term is explained where it first matters and again in the **Glossary**. CPU is workable (every window is 47 tokens); a T4 is faster.\n\n**Input → Model → Output.**\n\n| | Representation | Bounded fine-tuning |\n|---|---|---|\n| Input | DNA strings of A/C/G/T/N, 12..6,000 bases | labelled records `{{id, sequence, label}}`: 2,200 human promoter / non-promoter windows of 251 bases carried inline (1,600 train, 200 validation, 400 exposed development test) plus a 400-window fresh test, or your own CSV |\n| Model | the Nucleotide Transformer v2 50M encoder (6-mer tokens, 12 blocks, loaded with its digest-verified model code) | a fresh mean-pooled head plus the last 0, 2 or 12 encoder blocks (chosen on validation by a pre-registered grid) trained with cross-entropy; the rest frozen |\n| Output | one 512-d mean-pooled vector per sequence; a masked 6-mer distribution | a promoter label and probability per window, fresh-test accuracy and MCC beside two baselines and a frozen probe, and a CC BY-NC-SA 4.0 safetensors adapter |\n\n**How to use this notebook.** Choose a runtime, then **Runtime → Run all**. Run all completes in one pass: Section 1 installs nothing into the notebook's own Python, so no restart is needed (the recorded hosted run of the previous version needed one; this version removes it). Sections 1–3 are **infrastructure** — the isolated environment, the carried package and the verified snapshot with its model code — and their cells are collapsed; you may run them without studying them. The learning path starts in Section 4. Form fields (`# @param`) are the only values meant to be edited, and the defaults reproduce the recorded run. Before each principal result the notebook asks you to **Predict**; after it comes a collapsible **Check your reasoning** with a worked answer from the pre-registered evaluation of record (REL13 evaluation of record: Colab CLI T4, 2026-10-17, commit `d606232`, seed 0; this revision changes no setting or computation the scores depend on, so a hosted run of it is a reproduction) unless another run is named. **Troubleshooting**, a **Glossary** and a **Conclusion** template are at the end. Writing your predictions down is optional.\n\n**Roadmap:** 1–3 infrastructure → 4 the promoter sample, provenance, the split and where it overlaps on the genome *(evaluation practice)* → 5 representations and masked prediction *(core concept: a representation is not a prediction)* → 6 two baselines and the frozen probe *(evaluation practice)* → 7 bounded fine-tuning and the pre-registered depth grid *(core concept: what is trained, and choosing it on validation)* → 8 the fresh test and the exposed development test → 9 predictions, export and reload *(engineering)* → conclude."
     )]},
     "learning_objectives": (
         "install the pinned runtime; read what the carried package guarantees, including where its remote-code perimeter "
@@ -173,7 +176,7 @@ TEMPLATE = {
     ),
     "prerequisites": [
         '- **Learner:** basic Python and Colab or Jupyter familiarity; no prior experience with the Nucleotide Transformer or fine-tuning. Tokens, embeddings, probes, MCC, epochs and adapters are explained where they are first used and again in the Glossary.',
-        "- **Runtime:** a fresh supported **Linux x86_64** runtime (Google Colab, Kaggle or Linux Jupyter). Section 1 builds its own Python 3.12.12 environment from a hash-locked list of manylinux wheels, so the Python version of the kernel itself does not matter and nothing is installed into it; a Windows or macOS kernel is not supported. The default path runs on CPU (float32) and uses CUDA automatically when available. Every sequence is 251 bases = 47 tokens, so the model is cheap per step: the build record measured 3 s for the frozen probe and 34 s for the six-epoch fine-tuning with per-epoch validation on an RTX 5070 Ti (558 MiB peak), and 213 s for the same fine-tuning on the build workstation's CPU (19 s for the probe). The pre-registered selection grid trains three configurations (0, 2 and 12 blocks); the CPU build record of 2026-10-17 took 16 min for the grid on that workstation, and about 2–3 min on a T4 is an estimate from the two-block run. No clean hosted CPU run is recorded: a few tens of minutes on a 2-vCPU hosted runtime is an **untested estimate** from the workstation timings, and the verified hosted runtime is a **T4 GPU** (see `docs/release-verification.md`). The pinned `torch==2.14.0` install and the 224 MB checkpoint are the large downloads of the run; the data is carried inline.",
+        "- **Runtime:** a fresh supported **Linux x86_64** runtime (Google Colab, Kaggle or Linux Jupyter). Section 1 builds its own Python 3.12.12 environment from a hash-locked list of manylinux wheels, so the Python version of the kernel itself does not matter and nothing is installed into it; a Windows or macOS kernel is not supported. The default path runs on CPU (float32) and uses CUDA automatically when available. Every sequence is 251 bases = 47 tokens, so the model is cheap per step: the build record measured 3 s for the frozen probe and 34 s for the six-epoch fine-tuning with per-epoch validation on an RTX 5070 Ti (558 MiB peak), and 213 s for the same fine-tuning on the build workstation's CPU (19 s for the probe). The pre-registered selection grid trains three configurations (0, 2 and 12 blocks); the REL13 CPU development look of 2026-10-17 took 16 min for the grid on that workstation; on the Colab T4 the grid took 138.6 s (26.2 / 37.8 / 74.6 s for 0 / 2 / 12 blocks) and the whole run 252.1 s (REL13 evaluation of record: Colab CLI T4, 2026-10-17, commit `d606232`). No clean hosted CPU run is recorded: a few tens of minutes on a 2-vCPU hosted runtime is an **untested estimate** from the workstation timings, and the verified hosted runtime is a **T4 GPU** (see `docs/release-verification.md`). The pinned `torch==2.14.0` install and the 224 MB checkpoint are the large downloads of the run; the data is carried inline.",
         "- **Isolated environment location:** Section 1 builds the environment in `dimer_isolated_env_<lock digest>/` under the working directory. To put it elsewhere (a larger or persistent disk), set the environment variable `DIMER_ISOLATED_ENV` to a directory path **before** running Section 1 (for example `%env DIMER_ISOLATED_ENV=/content/dimer_env`); an existing complete environment at that path is reused.",
         "- **Knowledge:** basic Python; what a DNA sequence, GC content and a promoter are; what accuracy and Matthews correlation measure and why MCC is 0 for a constant predictor; why a probe on frozen embeddings and a fine-tuned model answer different questions.",
         "- **Data contract:** records are `{id, sequence, label}` — `sequence` a string of A/C/G/T/N of 12..6,000 bases (case-insensitive; `N` is tokenised base by base), `label` 0 or 1, `id` matching `[A-Za-z0-9_.:-]{1,64}` and unique; a dataset needs 8..20,000 records and a training split needs both labels; through the notebook's 65 / 15 / 20 split that means at least 12 distinct sequences; splitting de-duplicates by exact sequence so no sequence lands in two splits — but windows can still **overlap on the genome**, which this check cannot see (Section 4 measures it for the pinned sample). BYOD accepts one CSV with a header naming `sequence` and `label` (and optionally `id`).",
@@ -341,7 +344,7 @@ TEMPLATE = {
         },
         {
             "md": (
-                '<details><summary>Check your reasoning</summary>1,600 / 200 / 400 plus the 400-window fresh test, each balanced between promoters and non-promoters (CPU build record, 2026-10-17). No sequence, and no reverse complement, appears in two sets. But yes, windows can still overlap on the genome: after the re-draw, validation overlaps training 0 times and the fresh test lies at least 251 bases from every other window, while 121 of the 400 exposed development test windows overlap a train or validation window (119 of them negatives). That is why the exposed set is not the held-out result. Every refusal probe was rejected before the model ran.</details>'
+                '<details><summary>Check your reasoning</summary>1,600 / 200 / 400 plus the 400-window fresh test, each balanced between promoters and non-promoters (REL13 evaluation of record: Colab CLI T4, 2026-10-17, commit `d606232`; the CPU development look gave the same). No sequence, and no reverse complement, appears in two sets. But yes, windows can still overlap on the genome: after the re-draw, validation overlaps training 0 times and the fresh test lies at least 251 bases from every other window, while 121 of the 400 exposed development test windows overlap a train or validation window (119 of them negatives). That is why the exposed set is not the held-out result. Every refusal probe was rejected before the model ran.</details>'
             ),
         },
         {
@@ -440,8 +443,8 @@ TEMPLATE = {
                 "**majority** baseline answers the training majority label (0.5 on a balanced test split, MCC 0). The "
                 "**GC-threshold** baseline is fitted on the training split alone — the midpoint threshold and direction "
                 "that maximise training accuracy — and reads only composition: on the exposed development test it scores **0.715** / "
-                "0.4308 with the rule *GC ≥ 0.560 → promoter* (Colab T4 run of commit 7b53e06, 2026-10-08; the CPU build record of "
-                "this revision matches), which is the honest floor for a sequence model on this task. The "
+                "0.4308 with the rule *GC ≥ 0.560 → promoter* (Colab T4 run of commit 7b53e06, 2026-10-08; the same in the "
+                "REL13 evaluation of record: Colab CLI T4, 2026-10-17, commit `d606232`), which is the honest floor for a sequence model on this task. The "
                 "**frozen probe** (`pipe.linear_probe`) fits an L2-penalised logistic regression on the standardised "
                 "mean-pooled embeddings of the training windows and scores the test windows; the model's weights are "
                 "untouched, so this is what the pre-trained representation alone knows — 0.815 / 0.6315 on the exposed "
@@ -477,7 +480,7 @@ TEMPLATE = {
         },
         {
             "md": (
-                '<details><summary>Check your reasoning</summary>On the exposed development test the majority scored 0.5 / MCC 0.0 (a constant answer always has MCC 0), the GC rule 0.715 / 0.4308 and the frozen probe 0.815 / 0.6315 (Colab T4 run of commit 7b53e06, 2026-10-08; the CPU build record of this revision gives the same figures, since nothing in Sections 4–6 that they depend on changed). Promoters are GC-rich, so composition alone is a real floor; the probe well above it shows the representation carries more than composition.</details>'
+                '<details><summary>Check your reasoning</summary>On the exposed development test the majority scored 0.5 / MCC 0.0 (a constant answer always has MCC 0), the GC rule 0.715 / 0.4308 and the frozen probe 0.815 / 0.6315 (Colab T4 run of commit 7b53e06, 2026-10-08; the REL13 evaluation of record: Colab CLI T4, 2026-10-17, commit `d606232`, gives the same figures, since nothing in Sections 4–6 that they depend on changed). Promoters are GC-rich, so composition alone is a real floor; the probe well above it shows the representation carries more than composition.</details>'
             ),
         },
         {
@@ -501,12 +504,13 @@ TEMPLATE = {
                 "significance test; it is below one standard error of a 200-window MCC (about 0.04), so it is a tie-break, not evidence of a "
                 "difference. The rule is applied in that order: it is not a global smallest-scope-within-tolerance rule.\n\n"
                 "**What the grid compares (depth at one budget).** All three configurations share lr 3e-5 and 6 epochs, so the grid "
-                "compares trainable depth **at this budget**, not each depth at its best. In the CPU build check the head-only arm "
-                "peaked at its last epoch (6 of 6), so it was still improving: it is an under-trained comparator, and part of the gap "
+                "compares trainable depth **at this budget**, not each depth at its best. In the evaluation of record (and the CPU "
+                "development look) the head-only arm peaked at its last epoch (6 of 6), so it was still improving: it is an under-trained comparator, and part of the gap "
                 "between it and two blocks reflects the budget. The converged frozen-encoder reference is the logistic probe; Section "
                 "6 prints its validation MCC and this cell prints it beside the grid, as a reference that selects nothing. "
-                "**Cost:** the grid trains three configurations, about 2–3 min on a T4 and about 16 min on a workstation CPU "
-                "(CPU build check: 188 + 246 + 501 s); on a 2-vCPU hosted CPU expect longer.\n\n"
+                "**Cost:** the grid trains three configurations: 138.6 s on a T4 (26.2 + 37.8 + 74.6 s for 0, 2 and 12 blocks; "
+                "252.1 s for the whole run; REL13 evaluation of record: Colab CLI T4, 2026-10-17, commit `d606232`) and about 16 min on a workstation CPU (REL13 CPU "
+                "development look: 188 + 246 + 501 s); on a 2-vCPU hosted CPU expect longer.\n\n"
                 "The head type stays mean-pooled; its choice is disclosed, not re-tested. The grid trains 0, 12 "
                 "and then 2 blocks, so when 2 is kept its model is already in place.\n\n"
                 "**Pre-registered or exploratory.** After training, `preregistration_check` compares every setting this run used "
@@ -583,7 +587,7 @@ TEMPLATE = {
         },
         {
             "md": (
-                '<details><summary>Check your reasoning</summary>In the CPU build record of this revision (2026-10-17, seed 0) the best-epoch validation MCC was 0 blocks 0.5417 (epoch 6), 2 blocks 0.6679 (epoch 2), 12 blocks 0.6628 (epoch 4), so the rule kept **the head plus the last two blocks** (no larger configuration beats 2 blocks by at least 0.03 validation MCC). The kept run\'s validation curve went 0.505 / 0.0709 → 0.805 / 0.6335 → 0.825 / 0.6679 → 0.815 / 0.6543 → 0.8 / 0.6250 → 0.78 / 0.5618 → 0.82 / 0.6593, so **epoch 2** was kept while the training loss kept falling: 1,600 windows are enough to start overfitting, which is what validation selection is for. These are validation numbers on the re-drawn 200 windows, so they differ from the pre-fix notebook\'s (0.805 / 0.621 at epoch 2 on the old validation windows, Colab T4 run of commit 7b53e06). For reference only, the converged frozen logistic probe scored 0.815 / 0.6326 on the same validation windows: the head-only arm (0.5417 at its last epoch) is an under-trained stand-in for the frozen encoder at this budget, and two blocks (0.6679) are 0.035 above the probe.</details>'
+                '<details><summary>Check your reasoning</summary>In the pre-registered evaluation of record (REL13 evaluation of record: Colab CLI T4, 2026-10-17, commit `d606232`, seed 0) the best-epoch validation MCC was 0 blocks 0.5417 (epoch 6), 2 blocks 0.6679 (epoch 2), 12 blocks 0.6621 (epoch 1), so the rule kept **the head plus the last two blocks** (no larger configuration beats 2 blocks by at least 0.03 validation MCC). The kept run\'s validation curve went 0.505 / 0.0709 → 0.805 / 0.6335 → 0.825 / 0.6679 → 0.815 / 0.6543 → 0.8 / 0.6250 → 0.78 / 0.5618 → 0.82 / 0.6593, so **epoch 2** was kept while the training loss kept falling: 1,600 windows are enough to start overfitting, which is what validation selection is for. These are validation numbers on the re-drawn 200 windows, so they differ from the pre-fix notebook\'s (0.805 / 0.621 at epoch 2 on the old validation windows, Colab T4 run of commit 7b53e06). For reference only, the converged frozen logistic probe scored 0.815 / 0.6326 on the same validation windows: the head-only arm (0.5417 at its last epoch) is an under-trained stand-in for the frozen encoder at this budget, and two blocks (0.6679) are 0.035 above the probe. The REL13 CPU development look of 2026-10-17 gave the same 0- and 2-block figures and kept curve, and 12 blocks 0.6628 at epoch 4 (GPU against CPU numerics; the same selection).</details>'
             ),
         },
         {
@@ -596,20 +600,22 @@ TEMPLATE = {
                 "the adapter in `work/`, calls `pipe.reset_to_base()`, fits the probe and overlays the adapter again, checking that "
                 "its fresh-test predictions come back unchanged. Before that, `adapted_state_check` confirms the model in memory is the selected "
                 "adapted model (its depth, kept epoch and settings, and its validation scores re-measured now); if not, the fresh test "
-                "is not scored. The report carries `test_look`: *pre-registered evaluation (this runtime)* for the first scoring in "
-                "this runtime, *reproduction (this runtime)* for an identical later one; a runtime cannot know about other runs. Scored only under the pre-registered settings; see "
+                "is not scored. The report carries `test_look`. The pre-registered evaluation of record is already recorded "
+                "(`PREREGISTERED_EVALUATION_RECORD`: Colab CLI T4, 2026-10-17, commit `d606232`, blob `b28c43a7`), so the first scoring in "
+                "this runtime is a *reproduction of the pre-registered evaluation* and an identical later one a *reproduction (this runtime)*; "
+                "*pre-registered evaluation (this runtime)* applies only while no evaluation is recorded. Scored only under the pre-registered settings; see "
                 "`docs/release-verification.md` for the recorded evaluation and its reproductions.\n"
                 "- The **exposed development test** (the old 400 test windows) is scored on every run for continuity, labelled. It "
                 "is not a held-out number: it was in view when the build chose the head and depth, and many of its windows overlap "
                 "training windows on the genome.\n\n"
-                "A pre-registered run writes `outputs/{stem}_evaluation_report.json`; a same-runtime reproduction writes "
+                "The first pre-registered scoring in a runtime writes `outputs/{stem}_evaluation_report.json`; a same-runtime reproduction writes "
                 "`..._reproduction_<n>.json`, a run whose model-state check failed is labelled *not scored (model-state check failed)*, "
                 "and an exploratory run writes `..._exploratory_<n>.json`, so the first pre-registered report is never replaced. Beside "
                 "the fresh-test deltas the cell prints a paired bootstrap 95% interval for the MCC difference adapted − frozen probe "
                 "on the same 400 windows (2,000 resamples, seed 0; pre-registered in Amendment 2). It is descriptive and selects "
                 "nothing. "
                 "Read the fresh-test table in this order: the **MCC** first, then accuracy, then the per-class rows (the fresh-test "
-                "numbers of record are in `docs/release-verification.md`; this build's CPU check kept the fresh test masked). Four hundred windows "
+                "numbers of record are in `docs/release-verification.md` and in the check after this cell; the CPU development look kept the fresh test masked). Four hundred windows "
                 "from one seeded draw give **no dispersion estimate**: the deltas are sample-sanity evidence that the adaptation "
                 "contract works, not a benchmark. A gain on this benchmark's window convention says nothing about promoters in "
                 "*your* sequences until you measure it."
@@ -677,6 +683,7 @@ TEMPLATE = {
                 "    'model_state_check': state,\n"
                 "    'runtime': {{'device': pipe.device, 'torch': torch.__version__}},\n"
                 "    'record_of_evaluations': RECORD_OF_EVALUATIONS,\n"
+                "    'preregistered_evaluation_record': PREREGISTERED_EVALUATION_RECORD,\n"
                 "    'preregistration': PREREGISTRATION_DOC,\n"
                 "    'run_settings': run_settings,\n"
                 "    'grid': grid,\n"
@@ -703,7 +710,7 @@ TEMPLATE = {
         },
         {
             "md": (
-                '<details><summary>Check your reasoning</summary>The fresh-test answer is recorded in `docs/release-verification.md` from the hosted T4 run of this revision (the CPU build check kept the fresh test masked). On the exposed development test the same model scored 0.8425 / 0.6934 against the probe\'s 0.815 / 0.6315; the pre-fix notebook\'s adapted 0.8425 / 0.6934 there came from epoch selection on the old validation windows (Colab T4 run of commit 7b53e06). Seed-to-seed spread is **untested** (no multi-seed run is recorded), and on 400 windows the sampling error of MCC is of a similar size to these margins, so treat them as small.</details>'
+                '<details><summary>Check your reasoning</summary>Smaller. On the fresh test, in the pre-registered evaluation of record (REL13 evaluation of record: Colab CLI T4, 2026-10-17, commit `d606232`), the adapted model scored 0.83 / MCC 0.664 against the frozen probe\'s 0.8175 / 0.636 and the GC rule\'s 0.68 / 0.36: a difference of +0.028 MCC over the probe whose paired bootstrap 95% interval, −0.028 to +0.086, includes 0, so the gain over the frozen probe is **not resolved**; both beat the GC rule. On the exposed development test the same model scored 0.8425 / 0.6934 against the probe\'s 0.815 / 0.6315 (+0.062, on windows in view during the build that overlap training); the pre-fix notebook\'s adapted 0.8425 / 0.6934 there came from epoch selection on the old validation windows (Colab T4 run of commit 7b53e06). Seed-to-seed spread is **untested** (no multi-seed run is recorded), and on 400 windows the sampling error of MCC is of a similar size to these margins, so treat them as small.</details>'
             ),
         },
         {
@@ -778,7 +785,7 @@ TEMPLATE = {
         },
         {
             "md": (
-                '<details><summary>Check your reasoning</summary>Yes: the CPU build record of this revision reported 64 of 64 identical labels and a maximum probability difference of 0, and the adapter (34,645,456 bytes, 32 tensors for the head plus the last two blocks) carried the licence `cc-by-nc-sa-4.0` in its manifest.</details>'
+                '<details><summary>Check your reasoning</summary>Yes: the REL13 evaluation of record: Colab CLI T4, 2026-10-17, commit `d606232`, reported 64 of 64 identical labels and a maximum probability difference of 0, and the adapter (34,645,456 bytes, 32 tensors for the head plus the last two blocks) carried the licence `cc-by-nc-sa-4.0` in its manifest.</details>'
             ),
         },
     ],
@@ -786,21 +793,23 @@ TEMPLATE = {
         "## Interpretation and limits\n\n"
         "The held-out result is the fresh test (400 never-scored windows, locus-disjoint from every other window, scored "
         "under the pre-registered settings): the GC threshold, the frozen probe and the adapted model the pre-registered grid "
-        "kept side by side (the CPU build check kept two blocks; which depth the hosted run kept, and its scores, are recorded "
-        "in `docs/release-verification.md`), and an "
+        "kept side by side (in the pre-registered evaluation of record, Colab CLI T4, 2026-10-17, commit `d606232` (REL13), the grid kept "
+        "two blocks and the fresh-test MCC was adapted 0.664, frozen probe 0.636, GC rule 0.36; the adapted model's difference "
+        "from the probe, +0.028 with a paired bootstrap 95% interval of −0.028 to +0.086, includes 0, so its gain over the frozen "
+        "probe is **not resolved**, while both beat the GC rule; see `docs/release-verification.md`), and an "
         "adapter that reloads prediction-for-prediction and carries the base licence in its manifest. That is the claim: the "
         "adaptation contract works end to end on a real, licence-traced labelled set behind a verified remote-code perimeter, "
         "and its numbers are read against two non-neural baselines and the frozen representation, on windows that played no "
         "part in choosing the configuration.\n\n"
         "The limits are specific. The fresh test is 400 windows from one seeded draw and the validation split that picks the "
-        "epoch and the depth is 200, so neither gives a dispersion estimate. The gain over the frozen probe comes from one "
+        "epoch and the depth is 200, so neither gives a dispersion estimate. The gain over the frozen probe is not resolved on the fresh test and comes from one "
         "seed, and its size against seed-to-seed variation is **untested**. The task is one benchmark's convention: 251-base "
         "windows centred on EPD non-TATA promoters against windows that contain none. A gain here does not show that the "
         "classifier finds promoters in arbitrary sequence, handles TATA promoters or other species, or that its probabilities "
         "are calibrated (they are not). The head type was chosen in the build on an unrecorded split and is not re-tested. "
         "Every window, the fresh test included, is GRCh38 sequence that the model may have seen, unlabelled, during "
         "pre-training (DAT9), and that effect is not measured. The **exposed development test** numbers (adapted "
-        "0.8425 / 0.6934 against the probe's 0.815 / 0.6315) are continuity only. The fresh test has its own limit: its negatives cluster near training negatives (median 612 "
+        "0.8425 / 0.6934 against the probe's 0.815 / 0.6315, +0.062 MCC) are continuity only, not the held-out gain. The fresh test has its own limit: its negatives cluster near training negatives (median 612 "
         "bases to the nearest training window, 134 of 200 within 1 kb), while its positives do not (median 527,822 bases), so "
         "regional similarity may inflate its score, especially on the negative class (Section 4; Amendment 3). Pre-training "
         "exposure applies to the frozen probe and the adapted model alike, so the paired difference between them is the more "
@@ -841,7 +850,7 @@ TEMPLATE = {
         '- **You re-ran Section 1 on its own** — nothing is lost: it keeps the running worker and every variable. After a session restart, run from the top.\n'
         '- **"The isolated environment\'s Python process exited"** — usually out of memory; restart the session and choose **Run all**.\n'
         '- **Section 3 reports a size or SHA-256 mismatch (weights or one of the two model-code files)** — the message names the file. Delete the folder Section 3 prints as `weights_dir` and run Section 3 again; never edit the model-code files.\n'
-        '- **A verdict line says the adapted model did not beat the probe or a baseline** — on the default path that is a finding worth recording (the recorded run gained 0.06 MCC); on your data read the baselines first.\n'
+        '- **A verdict line says the adapted model did not beat the probe or a baseline** — on the default path that is a finding worth recording (in the REL13 evaluation of record, Colab CLI T4 2026-10-17, the fresh-test MCC was adapted 0.664 against frozen probe 0.636: +0.028 with a 95% interval of −0.028 to +0.086, which includes 0, so the gain is not resolved; both beat the GC rule 0.36. The +0.06 is the exposed development test); on your data read the baselines first.\n'
         '- **CUDA out of memory in Section 7** — turn `RUN_SELECTION_GRID` off, set `TRAINED_LAYERS = 1` and run Sections 6–9 again. The run becomes **exploratory**: the fresh test is not scored and the outputs carry an `_exploratory_<n>` suffix.\n'
         '- **Section 4 printed `byod_refused`** — the message names the file or record and the rule. Fix the file (or set `USE_BYOD = False`), select Section 4 and choose **Runtime → Run after**; until then the later cells print `skipped`, and the files already in `outputs/` are from an earlier run.\n'
         '- **BYOD: "BYOD path … does not exist" / "the upload dialog exists only in Google Colab" / "Upload exactly one …"** — set `BYOD_PATH` to a CSV in the runtime (it works on Kaggle and Jupyter); on Colab an empty path opens the dialog, and a cancelled dialog is reported as a refusal.\n'
@@ -864,7 +873,7 @@ TEMPLATE = {
         '- **Isolated environment** — the separate Python 3.12.12 environment Section 1 builds from the hash lock; every later cell runs there.\n'
         '- **BYOD** — bring your own data: your labelled sequences through the same cells.\n\n'
         '## Conclusion (your notes)\n\nOptional — fill in from **your** run:\n\n'
-        '- Majority ___, GC rule ___, frozen probe ___, adapted ___ (test MCC); the verdict was ___.\n'
+        '- Majority ___, GC rule ___, frozen probe ___, adapted ___ (fresh-test MCC); the adapted − probe interval was ___ to ___; the verdict was ___.\n'
         '- The kept epoch was ___; the later epochs were ___ on validation.\n'
         '- One window the GC rule got wrong and the classifier got right: ___.\n'
         '- One reason not to trust this gain on my own sequences yet: ___.\n\n'
