@@ -101,3 +101,37 @@ had been computed when this amendment was written.
   adapted model. It compares the adapter's depth, kept epoch, epochs, learning rate, seed, batch size and training-set
   size with the selected run, and it re-scores validation to check that the kept epoch's accuracy and MCC are
   reproduced. Matching settings alone are not enough. If the check fails, the fresh test is not scored.
+
+## Amendment 2 (2026-10-17, after the peer review, before any fresh-test score)
+
+What had been seen when this was written: the CPU build check's validation numbers for the grid (best-epoch MCC 0 →
+0.5417 at epoch 6, 2 → 0.6679 at epoch 2, 12 → 0.6628 at epoch 4) and the exposed development test. No model has
+scored the fresh test. The one development look on it (the GC rule, 0.68 / 0.36, no model) is disclosed in
+`docs/release-verification.md`. Nothing below was chosen in response to a fresh-test number.
+
+1. **Fresh-test margin (review M2).** The 251-base margin removes shared bases but leaves fresh negatives in the same
+   tiled regions as training negatives (134 of 200 within 1 kb of a training negative). The fresh test is re-drawn
+   with a symmetric margin of **1,000 bases** (`FRESH_TEST_MARGIN`) from every train, validation and exposed-test
+   window and between fresh windows, for both classes. It uses the same procedure and seed as before
+   (`FRESH_TEST_SEED = 20261018`, positives first, each pool sorted by id, shuffled, taken greedily), 400 windows,
+   200 / 200. If the never-scored pool cannot supply 200 negatives at that margin, the re-draw stops for the
+   orchestrator and nothing is re-pinned. The exact and reverse-complement duplicate checks and the oracle check are
+   re-run, and the class-wise distance to the nearest training window is reported before and after.
+2. **The grid compares depth at one budget (review M1).** The grid is unchanged: 0, 2 and 12 blocks share lr 3e-5 and
+   6 epochs, so it compares trainable depth **at this budget**, not each configuration at its best. The head-only arm
+   peaked at its last epoch (6 of 6) in the CPU build check, so it is an under-trained comparator, and the gap
+   between it and 2 blocks partly reflects the budget. The frozen logistic probe (L-BFGS, converged) is the
+   frozen-encoder reference. Its validation MCC is now printed beside the grid as a reference; it does not select.
+3. **The selection rule, stated exactly as implemented (review m1; unchanged).** (i) If the head-only arm is within
+   0.03 validation MCC of the best arm (≤ 0.03 behind), it is selected. (ii) Otherwise 2 blocks is kept unless 12
+   blocks beats it by at least 0.03, in which case 12 is selected. The earlier wording "within the tolerance the
+   smaller scope wins" described only step (i) and the 2-versus-12 comparison; it is not a global rule. The
+   tolerance is a practical tie-break below one standard error of a 200-window MCC (about 0.04 near 0.66). It is not
+   evidence of a difference (review m2).
+4. **Uncertainty on the fresh test (review m10).** Beside the fresh-test deltas, the notebook prints a paired
+   bootstrap 95% interval for the MCC difference adapted − frozen probe on the same 400 windows (2,000 resamples,
+   seed 0, percentile interval). It is descriptive and selects nothing.
+5. **Model-state check and labels (review m12, m5, m4).** The validation re-score in the state check uses the
+   in-loop batch size (`max(batch_size, 32)`), so the comparison is like for like. A pre-registered run whose state
+   check fails is labelled "not scored (model-state check failed)", not "exploratory". A same-runtime reproduction
+   writes `_reproduction_<n>` files and never overwrites the first pre-registered report.
