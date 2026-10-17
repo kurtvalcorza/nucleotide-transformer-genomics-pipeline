@@ -135,3 +135,22 @@ scored the fresh test. The one development look on it (the GC rule, 0.68 / 0.36,
    in-loop batch size (`max(batch_size, 32)`), so the comparison is like for like. A pre-registered run whose state
    check fails is labelled "not scored (model-state check failed)", not "exploratory". A same-runtime reproduction
    writes `_reproduction_<n>` files and never overwrites the first pre-registered report.
+
+## Amendment 3 (2026-10-17, owner decision, before any fresh-test score)
+
+Amendment 2 item 1 is withdrawn. The fresh test stays as pinned: 400 windows (200 / 200), drawn at the 251-base
+margin, `FRESH_TEST_DIGEST` `338824e22a7d537a5a405e4f0b4757d9a5d92e2fc3f20b61fc14155c8a944c5d`, unchanged.
+
+Why: at a symmetric 1,000-base margin, the never-scored pool cannot supply the negatives. Only 126 of the
+never-scored origin-test negatives lie at least 1,000 bases from every train, validation and exposed-test window.
+Only 49 of those are at least 1,000 bases from each other (greedy draw, same seed). At 750 bases the draw reaches 65
+negatives, and at 500 bases 103. The source tiles its negative windows, so a large margin exhausts the negative class.
+Positives are not limited: 4,605 meet the 1,000-base margin.
+
+The limitation is disclosed instead. Fresh-test negatives sit close to training negatives: their distance to the
+nearest training window has min 255, 10th percentile 290 and median 612 bases, and 134 of 200 are within 1 kb (174
+within 5 kb). Fresh-test positives do not: median 527,822 bases, 1 of 200 within 1 kb. Because of this regional
+clustering by class, the fresh-test score, especially on the negative class, may be inflated by regional similarity
+(local composition, repeats, a shared pre-training context) rather than reflect independent regions. The notebook
+prints this class-wise distance summary from the pinned data; that summary uses no model and is not a test score.
+Amendment 2 items 2 to 5 stand. Owner decision: Kurt, 2026-10-17 ("Keep 251 bp, disclose").
