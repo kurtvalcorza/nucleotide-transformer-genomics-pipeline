@@ -236,7 +236,8 @@ def test_swp_r_preinstalled_executor_runs_cells_in_its_own_kernel(nb: dict, monk
 
 
 def _byod_helper(nb: dict) -> object:
-    return _function(_cell_with(nb, "def byod_file("), "byod_file", {"os": os, "Path": Path})
+    # 2026-10-17 (DAT20): byod_file raises ByodInputError (a ValueError) so Section 4 can report it as one message.
+    return _function(_cell_with(nb, "def byod_file("), "byod_file", {"os": os, "Path": Path, "ByodInputError": type("ByodInputError", (ValueError,), {})})
 
 
 def test_swp_b_byod_path_reads_file_and_refuses_with_names(nb: dict, tmp_path: Path, monkeypatch) -> None:
@@ -245,7 +246,7 @@ def test_swp_b_byod_path_reads_file_and_refuses_with_names(nb: dict, tmp_path: P
     good = tmp_path / "mine.csv"
     good.write_bytes(b"data")
     assert helper(str(good), "file", (".csv",)) == good
-    with pytest.raises(FileNotFoundError, match="missing.csv"):
+    with pytest.raises(ValueError, match="missing.csv"):
         helper(str(tmp_path / "missing.csv"), "file")
     bad = tmp_path / "wrong.xyz"
     bad.write_bytes(b"x")
@@ -253,7 +254,7 @@ def test_swp_b_byod_path_reads_file_and_refuses_with_names(nb: dict, tmp_path: P
         helper(str(bad), "file", (".csv",))
     monkeypatch.delitem(sys.modules, "google.colab", raising=False)
     monkeypatch.setitem(sys.modules, "google", types.ModuleType("google"))
-    with pytest.raises(RuntimeError, match="only in Google Colab"):
+    with pytest.raises(ValueError, match="only in Google Colab"):
         helper("", "file")
 
 
@@ -299,7 +300,7 @@ def test_swp_a_quality_comparisons_are_verdicts_not_asserts(nb: dict) -> None:
 
 def test_swp_a_failed_ordering_is_reported_not_raised(nb: dict) -> None:
     """SWP-A: when the probe does not beat the GC rule the verdict says so and the cell carries on."""
-    line = next(ln for s in _code_cells(nb) for ln in s.splitlines() if ln.startswith("frozen_ordering = "))
+    line = next(ln.strip() for s in _code_cells(nb) for ln in s.splitlines() if ln.strip().startswith("frozen_ordering = "))
     ns = {"frozen_probe": {"mcc": 0.2}, "baseline_gc": {"mcc": 0.4}, "baseline_majority": {"mcc": 0.0}}
     exec(line, ns)
     assert ns["frozen_ordering"] == "the expected ordering does not hold"

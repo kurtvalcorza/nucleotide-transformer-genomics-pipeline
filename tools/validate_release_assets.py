@@ -55,7 +55,21 @@ CODE_MARKERS = (
     "BYOD_MIN_SEQUENCES = 12",
     # NTP-M2: Sections 5 and 6 put the pinned base back after an in-place adaptation
     "if not pipe.encoder_is_base or pipe.adapter is not None:",
-    "disjoint = check_split_disjoint(splits)",
+    "disjoint = check_split_disjoint(splits if fresh_records is None else {**splits, 'fresh_test': fresh_records}, reverse_complement_too=fresh_records is not None)",
+    # T58-5 / T58-6: locus checks of the pinned sample and the fresh test
+    "fresh_records = fresh_test_dataset()",
+    "check_locus_disjoint(sets, [('validation', 'train')])",
+    "check_locus_disjoint(sets, [('fresh_test', 'train'), ('fresh_test', 'validation'), ('fresh_test', 'test')], margin=LOCUS_MARGIN)",
+    # T58-2 / T58-7: the pre-registered grid and the score-once gate
+    "grid = select_trained_layers(grid_results)",
+    "protocol_check = preregistration_check(run_settings)",
+    "look = test_look(protocol_check['preregistered'] and adapted_state_check(pipe.adapter, adapt_result, adapted_val)['matches'], PREREGISTERED_SCORINGS)",
+    "if protocol_check['preregistered'] and state['matches']:",
+    "fresh_adapted = pipe.evaluate(fresh_records)",
+    "state = adapted_state_check(pipe.adapter, adapt_result, adapted_val)",
+    "SUFFIX = '' if fresh_result is not None else exploratory_suffix(",
+    # T58-4 (DAT20): one-message BYOD refusals that invalidate the run
+    "refuse_byod(exc)",
     "write_dataset_csv(train_records, 'outputs/nucleotide_transformer_train.csv')",
     "validate_dataset(probe, require_both_labels=True)",
     "print({'ceilings': {'MIN_BASES': MIN_BASES, 'MAX_BASES': MAX_BASES, 'MAX_TOKENS': MAX_TOKENS, 'MAX_SEQUENCES': MAX_SEQUENCES, 'MIN_RECORDS': MIN_RECORDS, 'MAX_RECORDS': MAX_RECORDS, 'device': pipe.device, 'remote_code_executed': pipe.remote_code_executed}})",
@@ -71,7 +85,7 @@ CODE_MARKERS = (
     "frozen_ordering = 'probe > GC rule > majority' if frozen_probe['mcc'] > baseline_gc['mcc'] > baseline_majority['mcc'] else",
     "pipe = NucleotideTransformerPipeline.from_pretrained(weights_dir=WEIGHTS_DIR)",
     "BYOD_PATH = ''",
-    "adapt_result = pipe.adapt(train_records, val_records, epochs=EPOCHS, lr=LEARNING_RATE, layers=TRAINED_LAYERS, seed=SEED, progress=report)",
+    "adapt_result = pipe.adapt(train_records, val_records, epochs=EPOCHS, lr=LEARNING_RATE, layers=layers_used, seed=SEED, progress=report)",
     "adapted_test = pipe.evaluate(test_records)",
     "adapted_val = pipe.evaluate(val_records)",
     "verdict = evaluation_report(adapted_test, frozen_probe, [baseline_majority, baseline_gc], sample_kind=",
@@ -97,7 +111,13 @@ MARKDOWN_MARKERS = (
     "`trust_remote_code=True`",
     "**adaptation with labelled sequences**",
     "**0.715**",
-    "**0.693**",
+    "**exposed development test**",
+    "**fresh test**",
+    "**Pre-training overlap (DAT9).**",
+    "**GRCh38.p14**",
+    "**Sequence-disjoint is not locus-disjoint.**",
+    "`DIMER_ISOLATED_ENV`",
+    "> **⚠️ Notice.** For research, training and evaluation only.",
     "**mean-pooled head**",
     "**validation MCC**",
     "**GC-threshold**",
@@ -107,13 +127,25 @@ MARKDOWN_MARKERS = (
     "**the licence the adapter inherits (`cc-by-nc-sa-4.0`)**",
     "## 4. The promoter sample, its provenance and the split",
     "## 5. Representations and masked prediction through the inference contract",
-    "## 6. Baselines and the frozen model on the held-out windows",
-    "## 7. Bounded fine-tuning of the head and the last two blocks",
-    "## 8. Held-out evaluation",
+    "## 6. Baselines and the frozen model on the exposed development test",
+    "## 7. Bounded fine-tuning: the pre-registered depth grid",
+    "## 8. Held-out evaluation: the fresh test and the exposed development test",
     "## 9. Look at the predictions, export the adapter and reload it",
     "**Labelling convention:**",
     "**Leakage:**",
     "nothing it produces may be used commercially",
+)
+# Learner-facing text the 2026-10-17 review fixes removed (T58-2, T58-3, T58-5, T58-7); it must not come back.
+STALE_MARKDOWN = (
+    "without leakage",
+    "validation, sequence-disjoint split",
+    "on a sequence-disjoint split",
+    "leakage-free split",
+    "Kaggle T4 run of 20 September",
+    "0.7725",
+    "640 windows",
+    "Each run replaces the default report",
+    "unknown, not ruled out",
 )
 # Direct-library use that must stay inside the carried module cells (G2: the notebook calls the
 # pipeline API, it does not reimplement it). Checked on every code cell except the embedded ones
@@ -148,7 +180,7 @@ INSTALL_CELL_MARKER = "def _isolated_environment_ready():"
 # Specification 2.2; see docs/release-verification.md for the release gate.
 # ---------------------------------------------------------------------------
 
-NOTEBOOK_SPEC = "2.2"
+NOTEBOOK_SPEC = "2.5"
 ALLOWED_PROFILES = {"E2E", "ARTIFACT-INFERENCE", "TASK-INFERENCE", "MULTI-CAPABILITY", "SMOKE"}
 STATUS_TOKENS = ("Candidate", "Release-grade")
 PLACEHOLDER = re.compile(r"\b(TODO|TBD|FIXME)\b|Insert text here|Tooltip:", re.I)
@@ -223,7 +255,7 @@ COMMON_MARKDOWN_MARKERS = (
     "without the repository being",
     "It does **not** establish benchmark superiority",
     "## References",
-    f"- Repository model card: https://github.com/kurtvalcorza/{REPO_NAME}/blob/main/MODEL_CARD.md",
+    f"https://github.com/kurtvalcorza/{REPO_NAME}/blob/main/MODEL_CARD.md",
 )
 # Patterns that must never appear in tutorial code (comment-stripped), in any cell.
 FORBIDDEN_PATTERNS = (
@@ -468,6 +500,7 @@ def _validate_notebook_structure(path: Path, notebook: dict) -> tuple[list[tuple
     _check(spec == NOTEBOOK_SPEC, f"{path.name}: metadata.dimer must declare notebook spec version '{NOTEBOOK_SPEC}'")
     _check(dimer.get("notebook_mode") in ("REFERENCE", "GUIDED", "WORKSHOP"), f"{path.name}: metadata.dimer.notebook_mode must declare a §3.3 pedagogical mode")
     _check(dimer.get("standalone") is True, f"{path.name}: metadata.dimer.standalone must be true (ST6)")
+    _check(dimer.get("notebook_kind") in ("TUTORIAL", "DEMO", "WORKSHOP", "CAPSTONE"), f"{path.name}: metadata.dimer.notebook_kind must declare a §3.7 kind (KND1)")
     generated = dimer.get("generated_from")
     _template = _load_tool("notebook_template").TEMPLATE
     _check(isinstance(generated, dict), f"{path.name}: metadata.dimer.generated_from is required (ST5)")
@@ -693,6 +726,9 @@ def _validate_notebook_content(
         _check(filename in code, f"{path.name}: must export {filename}")
     missing_md = [marker for marker in COMMON_MARKDOWN_MARKERS + MARKDOWN_MARKERS if marker not in markdown]
     _check(not missing_md, f"{path.name}: missing learner-facing markers: {missing_md}")
+    stale = [marker for marker in STALE_MARKDOWN if marker in markdown]
+    _check(not stale, f"{path.name}: markdown still carries text the 2026-10-17 review removed: {stale}")
+    _check("@@" not in markdown, f"{path.name}: an unfilled @@number@@ placeholder remains in the markdown")
     _check(f"**Profile:** `{EXPECTED_PROFILE}`" in markdown, f"{path.name}: markdown must state the profile")
     _check(f"https://huggingface.co/{model_id}" in markdown, f"{path.name}: references must link {model_id}")
 

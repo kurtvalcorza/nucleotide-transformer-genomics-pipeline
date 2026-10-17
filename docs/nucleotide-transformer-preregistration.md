@@ -84,3 +84,20 @@ Everything the run uses is fixed (`protocol.PREREGISTERED_SETTINGS`):
 - The first recorded pre-registered **hosted** run is the result. A later run with identical settings is a
   reproduction of it, provided nothing was changed in response to the test number.
 - A CPU build record of this revision is a build record pending that hosted run. It is reported as such.
+
+## Amendment 1 (2026-10-17, before any fresh-test score; SCORE_ONCE_RULE item 8)
+
+No setting above changes. Three procedural rules are added. None was prompted by a fresh-test number, because none
+had been computed when this amendment was written.
+
+- The fixer's CPU build check runs with the fresh test **masked**. It scores validation and the exposed development
+  test only. The fresh test is scored for the first time on the hosted T4 run with the pre-registered settings. That
+  run is the evaluation of record. Later identical hosted runs are reproductions, recorded in
+  `docs/release-verification.md`.
+- In the notebook, a pre-registered scoring is labelled "pre-registered evaluation (this runtime)". A later identical
+  scoring in the same runtime is labelled "reproduction (this runtime)". A runtime cannot know about other runs, so
+  the notebook points to `docs/release-verification.md` for the record.
+- Before the fresh test is scored, `protocol.adapted_state_check` confirms that the model in memory is the selected
+  adapted model. It compares the adapter's depth, kept epoch, epochs, learning rate, seed, batch size and training-set
+  size with the selected run, and it re-scores validation to check that the kept epoch's accuracy and MCC are
+  reproduced. Matching settings alone are not enough. If the check fails, the fresh test is not scored.
