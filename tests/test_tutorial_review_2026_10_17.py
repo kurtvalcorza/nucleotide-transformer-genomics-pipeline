@@ -125,6 +125,10 @@ def test_test_look_labels_and_exploratory_suffix():
     assert protocol.test_look(False) == "not scored (exploratory)"
     assert protocol.test_look(True, 0) == "pre-registered evaluation (this runtime)"
     assert protocol.test_look(True, 1) == "reproduction (this runtime)"
+    assert protocol.test_look(True, 0, state_matches=False) == "not scored (model-state check failed)"
+    assert protocol.output_suffix("s", [], protocol.LOOK_PREREGISTERED) == ""
+    assert protocol.output_suffix("s", ["s_evaluation_report_reproduction_1.json"], protocol.LOOK_REPRODUCTION) == "_reproduction_2"
+    assert protocol.output_suffix("s", [], protocol.LOOK_STATE_FAILED) == "_exploratory_1"
     stem = "nucleotide_transformer"
     assert protocol.exploratory_suffix(stem, []) == "_exploratory_1"
     assert protocol.exploratory_suffix(stem, [f"{stem}_evaluation_report_exploratory_1.json", f"{stem}_result_exploratory_2.json"]) == "_exploratory_3"
@@ -139,7 +143,7 @@ def test_no_permanent_scored_once_wording(nb):
 
 
 def _modules(nb: dict) -> dict:
-    ns: dict = {"__name__": "__main__", "os": os}
+    ns: dict = {"__name__": "__main__", "os": os, "torch": type("TorchStandIn", (), {"__version__": "stand-in"})}
     for cell in nb["cells"]:
         if cell["cell_type"] == "code" and cell.get("metadata", {}).get("dimer", {}).get("embedded_module"):
             exec(compile("".join(cell["source"]), "<module>", "exec"), ns)
@@ -151,11 +155,15 @@ class _Pipe:
 
     encoder_is_base = True
     adapter = None
+    device = "cpu"
 
     def __init__(self):
         self.scored: list[str] = []
 
-    def evaluate(self, records):
+    def predict(self, sequences, batch_size=16):
+        return {"labels": [0] * len(sequences), "probabilities": [[1.0, 0.0]] * len(sequences)}
+
+    def evaluate(self, records, batch_size=16):
         self.scored.append("fresh" if records and records[0].get("split") == "fresh_test" else "other")
         scored = classification_metrics([r["label"] for r in records], [r["label"] for r in records])
         if self.adapter and len(records) == 200:  # validation: the kept epoch's numbers, as the real model reproduces them
@@ -164,7 +172,7 @@ class _Pipe:
 
     def linear_probe(self, train, test):
         self.scored.append("fresh-probe" if test and test[0].get("split") == "fresh_test" else "probe")
-        return {**classification_metrics([r["label"] for r in test], [r["label"] for r in test]), "train_accuracy": 1.0, "probe": "stand-in"}
+        return {**classification_metrics([r["label"] for r in test], [r["label"] for r in test]), "train_accuracy": 1.0, "probe": "stand-in", "predictions": [r["label"] for r in test]}
 
     def save_artifact(self, path, metadata=None):
         Path(path).mkdir(parents=True, exist_ok=True)
@@ -179,7 +187,7 @@ class _Pipe:
 
     def adapt(self, train, val, *, epochs, lr, layers, seed, progress=None):
         mcc = {0: 0.50, 2: 0.60, 12: 0.61}.get(layers, 0.4)
-        self.adapter = {"history": [{"epoch": 0, "train_loss": None, "val": {"accuracy": 0.5, "mcc": 0.0, "n": len(val)}}, {"epoch": 1, "train_loss": 0.4, "val": {"accuracy": 0.8, "mcc": mcc, "n": len(val)}}], "best_epoch": 1, "n_trainable": 1, "n_head": 1, "n_total": 2, "layers": layers, "selection": "highest validation MCC (ties: accuracy, earlier epoch)", "loss": "cross-entropy over the two labels", "train_accuracy": 1.0, "batch_size": 16, "epochs": epochs, "lr": lr, "seed": seed, "n_train": len(train)}
+        self.adapter = {"history": [{"epoch": 0, "train_loss": None, "val": {"accuracy": 0.5, "mcc": 0.0, "n": len(val)}}, {"epoch": 1, "train_loss": 0.4, "val": {"accuracy": 0.8, "mcc": mcc, "n": len(val)}}], "best_epoch": 1, "n_trainable": 1, "n_head": 263682, "n_total": 2, "layers": layers, "selection": "highest validation MCC (ties: accuracy, earlier epoch)", "loss": "cross-entropy over the two labels", "train_accuracy": 1.0, "batch_size": 16, "epochs": epochs, "lr": lr, "seed": seed, "n_train": len(train)}
         return dict(self.adapter)
 
 
@@ -211,9 +219,12 @@ def test_default_settings_score_the_fresh_test_and_a_rerun_is_a_reproduction(nb,
     report = json.loads((tmp_path / "outputs" / "nucleotide_transformer_evaluation_report.json").read_text(encoding="utf-8"))
     assert report["test_look"] == "pre-registered evaluation (this runtime)" and report["fresh_test"]["n"] == 400
     assert "fresh" in ns["pipe"].scored and "fresh-probe" in ns["pipe"].scored
+    assert report["fresh_test"]["mcc_difference_adapted_minus_probe"]["resamples"] == 2000
     ns = _run_sections(nb, tmp_path, monkeypatch, ns=ns)
-    report = json.loads((tmp_path / "outputs" / "nucleotide_transformer_evaluation_report.json").read_text(encoding="utf-8"))
-    assert report["test_look"] == "reproduction (this runtime)" and ns["PREREGISTERED_SCORINGS"] == 2
+    first = json.loads((tmp_path / "outputs" / "nucleotide_transformer_evaluation_report.json").read_text(encoding="utf-8"))
+    assert first["test_look"] == "pre-registered evaluation (this runtime)"  # m4: a reproduction never overwrites it
+    again = json.loads((tmp_path / "outputs" / "nucleotide_transformer_evaluation_report_reproduction_1.json").read_text(encoding="utf-8"))
+    assert again["test_look"] == "reproduction (this runtime)" and ns["PREREGISTERED_SCORINGS"] == 2
 
 
 @pytest.mark.parametrize(
@@ -227,6 +238,33 @@ def test_a_changed_setting_never_scores_the_fresh_test(nb, tmp_path, monkeypatch
     assert not (tmp_path / "outputs" / "nucleotide_transformer_evaluation_report.json").exists()
     report = json.loads((tmp_path / "outputs" / "nucleotide_transformer_evaluation_report_exploratory_1.json").read_text(encoding="utf-8"))
     assert report["test_look"] == "not scored (exploratory)" and report["fresh_test"] is None and report["settings_differing"] == differing
+
+
+def test_a_changed_batch_size_never_scores_the_fresh_test(nb, tmp_path, monkeypatch):
+    ns = _modules(nb)
+    ns["pipe"] = _Pipe()
+    real_adapt = ns["pipe"].adapt
+
+    def adapt_batch_8(*args, **kwargs):  # the OOM tip: a smaller batch
+        result = real_adapt(*args, **kwargs)
+        ns["pipe"].adapter["batch_size"] = 8
+        return {**result, "batch_size": 8}
+
+    ns["pipe"].adapt = adapt_batch_8
+    ns = _run_sections(nb, tmp_path, monkeypatch, ns=ns)
+    assert ns["protocol_check"] == {"preregistered": False, "settings_differing": ["batch_size"]}
+    assert "fresh" not in ns["pipe"].scored
+
+
+def test_paired_bootstrap_and_distance_summary():
+    gold = [1, 0] * 50
+    same = protocol.paired_bootstrap_mcc_difference(gold, gold, gold, resamples=200)
+    assert same["difference"] == 0.0 and same["ci95"] == [0.0, 0.0]
+    better = protocol.paired_bootstrap_mcc_difference(gold, gold, [1] * 100, resamples=200)
+    assert better["difference"] == 1.0 and better["ci95"][0] > 0.5
+    fresh = samples.fresh_test_dataset()
+    summary = samples.nearest_distance_summary(fresh, samples.sample_dataset()["train"])
+    assert summary["0"]["median"] == 612 and summary["0"]["within_1kb"] == 134 and summary["1"]["within_1kb"] == 1
 
 
 def test_a_changed_data_source_never_scores_the_fresh_test(nb, tmp_path, monkeypatch):
@@ -250,6 +288,7 @@ def test_fresh_test_is_not_scored_when_the_model_in_memory_is_not_the_selected_o
     ns["pipe"].adapt = adapt_then_drift
     ns = _run_sections(nb, tmp_path, monkeypatch, ns=ns)
     assert ns["protocol_check"]["preregistered"] is True and ns["state"]["matches"] is False
+    assert ns["look"] == "not scored (model-state check failed)"
     assert "fresh" not in ns["pipe"].scored and ns["fresh_result"] is None
 
 

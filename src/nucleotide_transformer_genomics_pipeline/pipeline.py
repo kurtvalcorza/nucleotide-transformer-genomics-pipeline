@@ -459,6 +459,7 @@ class NucleotideTransformerPipeline:
             "l2": l2,
             "train_accuracy": classification_metrics(train_predictions, [r["label"] for r in train_checked])["accuracy"],
             "seconds": round(time.perf_counter() - started, 3),
+            "predictions": test_predictions,  # per-record labels, for paired comparisons on the same records
             **scored,
         }
 

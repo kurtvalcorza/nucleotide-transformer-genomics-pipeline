@@ -31,13 +31,17 @@ PREREGISTRATION_DOC = "docs/nucleotide-transformer-preregistration.md"
 PREREGISTRATION_DATE = "2026-10-17"
 GRID_LAYERS = (0, 2, 12)  # head only on the frozen encoder; the default two blocks; the whole encoder
 GRID_INCUMBENT = DEFAULT_TRAINED_LAYERS  # 2: kept unless beaten by at least GRID_TOLERANCE validation MCC
-GRID_TOLERANCE = 0.03  # a practical tolerance (the noise of a 200-window validation MCC), not a significance test
+GRID_TOLERANCE = 0.03  # a practical tie-break, below one standard error of a 200-window MCC (about 0.04 near 0.66); not evidence of a difference
+HEAD_PARAMETERS = 263_682  # the mean-pooled head (512 -> 512 tanh -> 2) the pre-registration fixes
+BOOTSTRAP_RESAMPLES = 2_000  # paired bootstrap of the fresh-test MCC difference (Amendment 2 item 4)
+BOOTSTRAP_SEED = 0
 # A runtime cannot know about other runtimes (SCORE_ONCE_RULE item 8): which run is THE evaluation of record, and which
 # runs are its reproductions, is recorded in docs/release-verification.md, never decided in the notebook.
 RECORD_OF_EVALUATIONS = "docs/release-verification.md"
 LOOK_PREREGISTERED = "pre-registered evaluation (this runtime)"
 LOOK_REPRODUCTION = "reproduction (this runtime)"
 LOOK_EXPLORATORY = "not scored (exploratory)"
+LOOK_STATE_FAILED = "not scored (model-state check failed)"
 
 PREREGISTERED_SETTINGS: dict[str, Any] = {
     "data_source": "pinned promoter sample",
@@ -82,13 +86,14 @@ def preregistration_check(settings: Mapping[str, Any]) -> dict[str, Any]:
 
 
 def select_trained_layers(results: Mapping[int, Mapping[str, Any]]) -> dict[str, Any]:
-    """The pre-registered grid rule over best-epoch validation results ``{layers: {"mcc", "accuracy", ...}}``.
+    """The pre-registered grid rule over best-epoch validation results ``{layers: {"mcc", "accuracy", ...}}``, exactly as
+    implemented (Amendment 2 item 3):
 
-    1. The head-only configuration on the frozen encoder (0 blocks) is kept unless another configuration beats its
-       validation MCC by more than ``GRID_TOLERANCE``.
-    2. Otherwise the incumbent (2 blocks) is kept unless a configuration with more blocks beats it by at least
-       ``GRID_TOLERANCE``; when several do, the best of them is taken, and among configurations within the
-       tolerance of that best one the smallest trainable scope wins.
+    1. If the head-only arm (0 blocks) is at most ``GRID_TOLERANCE`` behind the best arm's validation MCC, select it.
+    2. Otherwise keep the incumbent (2 blocks) unless 12 blocks beats it by at least ``GRID_TOLERANCE``; then select 12.
+
+    This is not a global "smallest scope within the tolerance" rule: with {0: .60, 2: .62, 12: .64} it selects 2.
+    All arms share one learning rate and epoch budget, so the grid compares depth at that budget.
     """
     if sorted(results) != sorted(GRID_LAYERS):
         raise ValueError(f"the grid needs exactly the configurations {GRID_LAYERS}, got {sorted(results)}")
@@ -108,12 +113,14 @@ def select_trained_layers(results: Mapping[int, Mapping[str, Any]]) -> dict[str,
     return {"selected_layers": selected, "reason": reason, "validation_mcc": {str(k): round(v, 4) for k, v in mcc.items()}, "tolerance": GRID_TOLERANCE, "incumbent": GRID_INCUMBENT}
 
 
-def test_look(preregistered: bool, earlier_preregistered_scorings: int = 0) -> str:
+def test_look(preregistered: bool, earlier_preregistered_scorings: int = 0, state_matches: bool = True) -> str:
     """The label a fresh-test score carries (SCORE_ONCE_RULE items 3, 5 and 8): the first pre-registered scoring in this
-    runtime, a later identical one in the same runtime, or none. Which hosted run is the evaluation of record is in
-    ``RECORD_OF_EVALUATIONS``."""
+    runtime, a later identical one in the same runtime, a pre-registered run whose model-state check failed (not
+    scored), or an exploratory run. Which hosted run is the evaluation of record is in ``RECORD_OF_EVALUATIONS``."""
     if not preregistered:
         return LOOK_EXPLORATORY
+    if not state_matches:
+        return LOOK_STATE_FAILED
     return LOOK_REPRODUCTION if earlier_preregistered_scorings > 0 else LOOK_PREREGISTERED
 
 
@@ -135,12 +142,47 @@ def adapted_state_check(adapter: Mapping[str, Any] | None, adapt_result: Mapping
     return {"matches": not mismatches, "mismatches": mismatches}
 
 
-def exploratory_suffix(stem: str, existing: Sequence[str]) -> str:
-    """``_exploratory_<n>`` with the smallest ``n`` for which neither ``<stem>_evaluation_report_exploratory_<n>.json``
-    nor ``<stem>_result_exploratory_<n>.json`` exists, so an exploratory run never replaces a pre-registered file
-    or an earlier exploratory one."""
+def exploratory_suffix(stem: str, existing: Sequence[str], kind: str = "exploratory") -> str:
+    """``_<kind>_<n>`` with the smallest ``n`` for which neither ``<stem>_evaluation_report_<kind>_<n>.json`` nor
+    ``<stem>_result_<kind>_<n>.json`` exists, so an exploratory run or a same-runtime reproduction never replaces the
+    pre-registered files or an earlier one of its kind."""
     names = set(existing)
     n = 1
-    while f"{stem}_evaluation_report_exploratory_{n}.json" in names or f"{stem}_result_exploratory_{n}.json" in names:
+    while f"{stem}_evaluation_report_{kind}_{n}.json" in names or f"{stem}_result_{kind}_{n}.json" in names:
         n += 1
-    return f"_exploratory_{n}"
+    return f"_{kind}_{n}"
+
+
+def output_suffix(stem: str, existing: Sequence[str], look: str) -> str:
+    """'' for the first pre-registered evaluation in this runtime, ``_reproduction_<n>`` for a same-runtime reproduction,
+    ``_exploratory_<n>`` for everything that did not score the fresh test."""
+    if look == LOOK_PREREGISTERED:
+        return ""
+    return exploratory_suffix(stem, existing, "reproduction" if look == LOOK_REPRODUCTION else "exploratory")
+
+
+def _mcc(gold: Sequence[int], pred: Sequence[int]) -> float:
+    tp = sum(1 for g, p in zip(gold, pred, strict=True) if g == 1 and p == 1)
+    tn = sum(1 for g, p in zip(gold, pred, strict=True) if g == 0 and p == 0)
+    fp = sum(1 for g, p in zip(gold, pred, strict=True) if g == 0 and p == 1)
+    fn = sum(1 for g, p in zip(gold, pred, strict=True) if g == 1 and p == 0)
+    denominator = ((tp + fp) * (tp + fn) * (tn + fp) * (tn + fn)) ** 0.5
+    return 0.0 if denominator == 0 else (tp * tn - fp * fn) / denominator
+
+
+def paired_bootstrap_mcc_difference(gold: Sequence[int], pred_a: Sequence[int], pred_b: Sequence[int], *, resamples: int = BOOTSTRAP_RESAMPLES, seed: int = BOOTSTRAP_SEED) -> dict[str, Any]:
+    """MCC(a) - MCC(b) on the same records with a paired percentile bootstrap 95% interval (records resampled with
+    replacement, both systems together). Descriptive only: it selects nothing."""
+    import random
+
+    if not (len(gold) == len(pred_a) == len(pred_b)) or not gold:
+        raise ValueError("gold and both prediction lists must be non-empty and the same length")
+    rng = random.Random(seed)
+    n = len(gold)
+    diffs = []
+    for _ in range(resamples):
+        idx = [rng.randrange(n) for _ in range(n)]
+        g = [gold[i] for i in idx]
+        diffs.append(_mcc(g, [pred_a[i] for i in idx]) - _mcc(g, [pred_b[i] for i in idx]))
+    diffs.sort()
+    return {"difference": round(_mcc(gold, pred_a) - _mcc(gold, pred_b), 4), "ci95": [round(diffs[int(0.025 * resamples)], 4), round(diffs[min(resamples - 1, int(0.975 * resamples))], 4)], "resamples": resamples, "seed": seed, "method": "paired percentile bootstrap over records"}

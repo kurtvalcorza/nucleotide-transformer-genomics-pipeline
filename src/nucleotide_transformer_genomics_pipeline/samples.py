@@ -24,7 +24,9 @@ different splits can overlap on the genome even though no exact sequence (or rev
 The seeded draw left 51 of the 200 validation windows overlapping a training window; those 51 are replaced by
 windows of the same label drawn with ``VALIDATION_REDRAW_SEED`` from the unused origin-train intervals that sit
 at least ``LOCUS_MARGIN`` bases from every training and validation window (train is unchanged). The 400 test
-windows of the seed-42 draw overlap training windows on the genome (113 of them), and they were in view when
+windows of the seed-42 draw overlap training or validation windows on the genome (113 of them before the
+validation re-draw, 121 after it, because the replacement windows were kept away from train and validation but not
+from the exposed test), and they were in view when
 the head type and depth were chosen in the build, so they are kept only as the **exposed development test**.
 The **fresh test** (``_FRESH_TEST_RECORDS``, ``fresh_test_dataset``) is 400 windows (200 / 200) drawn with
 ``FRESH_TEST_SEED`` from origin-test intervals never used before, each at least ``LOCUS_MARGIN`` bases from
@@ -215,6 +217,27 @@ def locus_overlaps(
     return hits
 
 
+def nearest_distance_summary(records: Sequence[Mapping[str, Any]], others: Sequence[Mapping[str, Any]]) -> dict[str, Any]:
+    """Per label: the distance in bases from each window to the nearest window of ``others`` on the same chromosome
+    (0 = overlap; a window with none on its chromosome counts as 10**9). Reports min, 10th percentile, median and the
+    counts within 1 kb, 5 kb and 10 kb. Uses coordinates only, never a model or a prediction."""
+    by_region: dict[str, list[tuple[int, int]]] = {}
+    for o in others:
+        by_region.setdefault(str(o["region"]), []).append((int(o["start"]), int(o["end"])))
+    summary: dict[str, Any] = {}
+    for label in (1, 0):
+        distances = sorted(
+            min((max(0, max(int(r["start"]), s) - min(int(r["end"]), e)) for s, e in by_region.get(str(r["region"]), ())), default=10**9)
+            for r in records
+            if int(r["label"]) == label
+        )
+        if not distances:
+            continue
+        p10, median = (distances[min(len(distances) - 1, int(q * len(distances)))] for q in (0.1, 0.5))
+        summary[str(label)] = {"n": len(distances), "min": distances[0], "p10": p10, "median": median, "within_1kb": sum(d < 1_000 for d in distances), "within_5kb": sum(d < 5_000 for d in distances), "within_10kb": sum(d < 10_000 for d in distances)}
+    return summary
+
+
 def check_locus_disjoint(splits: Mapping[str, Sequence[Mapping[str, Any]]], pairs: Sequence[tuple[str, str]], *, margin: int = 0) -> dict[str, int]:
     """Raise if any window of one named split overlaps (or lies within ``margin`` bases of) a window of the
     other, for each ``(split, other_split)`` pair; returns the pair counts (all zero)."""
@@ -319,7 +342,7 @@ def sample_dataset(*, verify: bool = True) -> dict[str, list[dict[str, Any]]]:
 def fresh_test_dataset(*, verify: bool = True) -> list[dict[str, Any]]:
     """The 400-window fresh test (origin test lists, never scored before 2026-10-17, at least ``LOCUS_MARGIN``
     bases from every sample window). Refuses to return it unless it hashes to ``FRESH_TEST_DIGEST``. Score it
-    only under the pre-registered settings (``preregistration_check`` in ``metrics.py``)."""
+    only under the pre-registered settings (``preregistration_check`` in ``protocol.py``)."""
     records = []
     for line in _FRESH_TEST_RECORDS.strip().splitlines():
         rid, region, start, end, strand, label, split, sequence = line.split("\t")
