@@ -40,8 +40,8 @@ import sys
 from pathlib import Path
 from typing import Any
 
-GENERATOR_VERSION = "build_notebook.py/2.2"
-NOTEBOOK_SPEC = "2.2"
+GENERATOR_VERSION = "build_notebook.py/2.3"  # /2.3: NOTEBOOK_SPEC 2.5 declaration, notebook_kind (KND1), DOC17 use notice
+NOTEBOOK_SPEC = "2.5"
 
 # ST2: default rewrite rule; a template may replace it with its own `rewrites` list. Every rule must
 # match exactly once across the embedded modules, so a silent no-op is impossible.
@@ -475,6 +475,8 @@ def template_contract() -> dict[str, str]:
         "lock": "OPTIONAL (required with isolated_runtime): repository-relative hash-locked requirements compiled from the pins",
         "infrastructure_labels": "OPTIONAL bool (default False): label the setup, carrier and snapshot sections Infrastructure and collapse their cells (NOTEBOOK_SPEC 2.2 GDL11)",
         "guided": "OPTIONAL {'opening': [markdown cells inserted after the header]} (NOTEBOOK_SPEC 2.2 GDL1-GDL4)",
+        "kind": "OPTIONAL str: metadata.dimer.notebook_kind (NOTEBOOK_SPEC 2.5 KND1), e.g. TUTORIAL",
+        "use_notice": "OPTIONAL str: the DOC17 use notice, a markdown blockquote placed after the title and badges",
     }
 
 
@@ -849,7 +851,8 @@ def render(repo: Path, template: dict[str, Any], revision: str | None = None) ->
     )
     header = (
         f"# {template['title']}\n\n{badges}\n\n"
-        f"**Profile:** `{template['profile']}`  \n"
+        + (f"{template['use_notice'].strip()}\n\n" if template.get("use_notice") else "")
+        + f"**Profile:** `{template['profile']}`  \n"
         f"**Mode:** `{mode}`  \n"
         f"**Notebook specification:** DIMER Notebook Specification {NOTEBOOK_SPEC} — **standalone** (§4)  \n"
         f"**Capability:** {template['capability']}\n\n"
@@ -1068,6 +1071,7 @@ def render(repo: Path, template: dict[str, Any], revision: str | None = None) ->
             "dimer": {
                 "notebook_profile": template["profile"],
                 "notebook_mode": mode,
+                **({"notebook_kind": template["kind"]} if template.get("kind") else {}),
                 "notebook_spec": NOTEBOOK_SPEC,
                 "standalone": True,
                 **({"environment": "isolated hash-locked uv environment; nothing installed into the kernel"} if isolated else {}),

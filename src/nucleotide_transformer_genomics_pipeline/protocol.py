@@ -1,0 +1,196 @@
+"""The pre-registered evaluation protocol (docs/nucleotide-transformer-preregistration.md, 2026-10-17).
+
+Three things live here, all pure Python so CI can test them without a model:
+
+* ``PREREGISTERED_SETTINGS`` - every setting the pre-registration fixes. ``preregistration_check`` compares the
+  settings a run actually used with ALL of them and returns ``preregistered`` plus the list of settings that
+  differ. Only a pre-registered run may score the fresh test; every other run is exploratory and is compared on
+  validation (and on the labelled exposed development test) only.
+* ``select_trained_layers`` - the pre-registered validation grid's selection rule over ``GRID_LAYERS``.
+* ``test_look`` - the label a fresh-test score carries: "reproduction of the pre-registered evaluation" (while one is recorded), "pre-registered evaluation (this runtime)", "reproduction
+  (this runtime)" or "not scored (exploratory)"; ``adapted_state_check`` - the model in memory is the selected one.
+"""
+
+from __future__ import annotations
+
+# ruff: noqa: E501  -- contract lines are kept at the fleet width
+from collections.abc import Mapping, Sequence
+from typing import Any
+
+from .pipeline import DEFAULT_BATCH_SIZE, DEFAULT_TRAINED_LAYERS
+from .samples import (
+    FRESH_TEST_DIGEST,
+    FRESH_TEST_SIZE,
+    SAMPLE_DIGEST,
+    SAMPLE_SEED,
+    SAMPLE_SPLIT,
+    SAMPLE_SPLIT_DIGESTS,
+)
+
+PREREGISTRATION_DOC = "docs/nucleotide-transformer-preregistration.md"
+PREREGISTRATION_DATE = "2026-10-17"
+GRID_LAYERS = (0, 2, 12)  # head only on the frozen encoder; the default two blocks; the whole encoder
+GRID_INCUMBENT = DEFAULT_TRAINED_LAYERS  # 2: kept unless beaten by at least GRID_TOLERANCE validation MCC
+GRID_TOLERANCE = 0.03  # a practical tie-break, below one standard error of a 200-window MCC (about 0.04 near 0.66); not evidence of a difference
+HEAD_PARAMETERS = 263_682  # the mean-pooled head (512 -> 512 tanh -> 2) the pre-registration fixes
+BOOTSTRAP_RESAMPLES = 2_000  # paired bootstrap of the fresh-test MCC difference (Amendment 2 item 4)
+BOOTSTRAP_SEED = 0
+# A runtime cannot know about other runtimes (SCORE_ONCE_RULE item 8): which run is THE evaluation of record, and which
+# runs are its reproductions, is recorded in docs/release-verification.md.
+RECORD_OF_EVALUATIONS = "docs/release-verification.md"
+# The release-verification record of the first pre-registered hosted run (None: none recorded yet). While it is set, a
+# pre-registered fresh-test scoring in a new runtime is labelled a reproduction of that evaluation (SCORE_ONCE_RULE item 3).
+PREREGISTERED_EVALUATION_RECORD: str | None = "docs/release-verification.md: Colab CLI T4, 2026-10-17, commit d606232, blob b28c43a7"
+LOOK_PREREGISTERED = "pre-registered evaluation (this runtime)"
+LOOK_RECORDED_REPRODUCTION = "reproduction of the pre-registered evaluation"
+LOOK_REPRODUCTION = "reproduction (this runtime)"
+LOOK_EXPLORATORY = "not scored (exploratory)"
+LOOK_STATE_FAILED = "not scored (model-state check failed)"
+
+PREREGISTERED_SETTINGS: dict[str, Any] = {
+    "data_source": "pinned promoter sample",
+    "sample_digest": SAMPLE_DIGEST,
+    "split_digests": dict(SAMPLE_SPLIT_DIGESTS),
+    "split_sizes": dict(SAMPLE_SPLIT),
+    "sample_seed": SAMPLE_SEED,
+    "split_seed": 42,  # the notebook's SPLIT_SEED form field (used by a BYOD split; fixed here all the same)
+    "fresh_test_digest": FRESH_TEST_DIGEST,
+    "fresh_test_size": FRESH_TEST_SIZE,
+    "epochs": 6,
+    "learning_rate": 3e-5,
+    "batch_size": DEFAULT_BATCH_SIZE,
+    "seed": 0,
+    "head": "mean-pooled (512 -> 512 tanh -> 2)",
+    "optimizer": "AdamW, weight decay 0, gradient clipping 1.0, no scheduler",
+    "epoch_selection": "highest validation MCC (ties: accuracy, earlier epoch)",
+    "selection_grid": True,
+    "grid_layers": list(GRID_LAYERS),
+    "trained_layers": "grid selection",
+}
+
+
+def preregistration_check(settings: Mapping[str, Any]) -> dict[str, Any]:
+    """``preregistered`` is True only when every pre-registered setting is present in ``settings`` with the
+    pre-registered value; ``settings_differing`` names each one that is missing or different."""
+    differing = []
+    for key, expected in PREREGISTERED_SETTINGS.items():
+        if key not in settings:
+            differing.append(key)
+            continue
+        actual = settings[key]
+        if isinstance(expected, float) or isinstance(actual, float):
+            same = isinstance(actual, int | float) and not isinstance(actual, bool) and abs(float(actual) - float(expected)) <= 1e-12 * max(1.0, abs(float(expected)))
+        elif isinstance(expected, list | tuple):
+            same = isinstance(actual, list | tuple) and list(actual) == list(expected)
+        else:
+            same = type(actual) is type(expected) and actual == expected
+        if not same:
+            differing.append(key)
+    return {"preregistered": not differing, "settings_differing": differing}
+
+
+def select_trained_layers(results: Mapping[int, Mapping[str, Any]]) -> dict[str, Any]:
+    """The pre-registered grid rule over best-epoch validation results ``{layers: {"mcc", "accuracy", ...}}``, exactly as
+    implemented (Amendment 2 item 3):
+
+    1. If the head-only arm (0 blocks) is at most ``GRID_TOLERANCE`` behind the best arm's validation MCC, select it.
+    2. Otherwise keep the incumbent (2 blocks) unless 12 blocks beats it by at least ``GRID_TOLERANCE``; then select 12.
+
+    This is not a global "smallest scope within the tolerance" rule: with {0: .60, 2: .62, 12: .64} it selects 2.
+    All arms share one learning rate and epoch budget, so the grid compares depth at that budget.
+    """
+    if sorted(results) != sorted(GRID_LAYERS):
+        raise ValueError(f"the grid needs exactly the configurations {GRID_LAYERS}, got {sorted(results)}")
+    mcc = {layers: float(results[layers]["mcc"]) for layers in GRID_LAYERS}
+    best = max(mcc.values())
+    smallest = min(GRID_LAYERS)
+    if best - mcc[smallest] <= GRID_TOLERANCE + 1e-12:
+        selected, reason = smallest, f"the frozen encoder (head only) is not beaten by more than {GRID_TOLERANCE} validation MCC"
+    else:
+        challengers = [layers for layers in GRID_LAYERS if layers > GRID_INCUMBENT and mcc[layers] >= mcc[GRID_INCUMBENT] + GRID_TOLERANCE - 1e-12]
+        if not challengers:
+            selected, reason = GRID_INCUMBENT, f"no larger configuration beats {GRID_INCUMBENT} blocks by at least {GRID_TOLERANCE} validation MCC"
+        else:
+            top = max(mcc[layers] for layers in challengers)
+            selected = min(layers for layers in challengers if top - mcc[layers] <= GRID_TOLERANCE + 1e-12)
+            reason = f"{selected} blocks: beats {GRID_INCUMBENT} blocks by at least {GRID_TOLERANCE} validation MCC (smallest scope within the tolerance of the best)"
+    return {"selected_layers": selected, "reason": reason, "validation_mcc": {str(k): round(v, 4) for k, v in mcc.items()}, "tolerance": GRID_TOLERANCE, "incumbent": GRID_INCUMBENT}
+
+
+def test_look(preregistered: bool, earlier_preregistered_scorings: int = 0, state_matches: bool = True, recorded_evaluation: str | None = PREREGISTERED_EVALUATION_RECORD) -> str:
+    """The label a fresh-test score carries (SCORE_ONCE_RULE items 3, 5 and 8): an exploratory run; a pre-registered run
+    whose model-state check failed (not scored); a later identical scoring in the same runtime; the first pre-registered
+    scoring in this runtime while an evaluation of record is recorded (``recorded_evaluation``, default
+    ``PREREGISTERED_EVALUATION_RECORD``), which is a reproduction of it; or, with none recorded, the pre-registered
+    evaluation. The record and its reproductions are listed in ``RECORD_OF_EVALUATIONS``."""
+    if not preregistered:
+        return LOOK_EXPLORATORY
+    if not state_matches:
+        return LOOK_STATE_FAILED
+    if earlier_preregistered_scorings > 0:
+        return LOOK_REPRODUCTION
+    return LOOK_RECORDED_REPRODUCTION if recorded_evaluation else LOOK_PREREGISTERED
+
+
+def adapted_state_check(adapter: Mapping[str, Any] | None, adapt_result: Mapping[str, Any], validation: Mapping[str, Any]) -> dict[str, Any]:
+    """Before the fresh test is scored, the model in memory must be the selected adapted model, not merely a run with the
+    right settings: the pipeline's adapter must be the one ``adapt_result`` describes (depth, kept epoch, epochs, learning
+    rate, seed, batch size, training-set size) and re-scoring validation now must give the kept epoch's validation
+    accuracy and MCC. Returns ``{"matches": bool, "mismatches": [...]}``."""
+    mismatches = []
+    if not adapter or adapter.get("provisional"):
+        return {"matches": False, "mismatches": ["no adapted model in memory (re-run Section 7)"]}
+    for key in ("layers", "best_epoch", "epochs", "lr", "seed", "batch_size", "n_train"):
+        if adapter.get(key) != adapt_result.get(key):
+            mismatches.append(f"adapter {key} {adapter.get(key)!r} != selected {adapt_result.get(key)!r}")
+    kept = adapt_result["history"][adapt_result["best_epoch"]].get("val") or {}
+    for key in ("accuracy", "mcc"):
+        if kept.get(key) is None or abs(float(validation[key]) - float(kept[key])) > 1e-9:
+            mismatches.append(f"validation {key} now {validation.get(key)!r} != kept epoch {kept.get(key)!r}")
+    return {"matches": not mismatches, "mismatches": mismatches}
+
+
+def exploratory_suffix(stem: str, existing: Sequence[str], kind: str = "exploratory") -> str:
+    """``_<kind>_<n>`` with the smallest ``n`` for which neither ``<stem>_evaluation_report_<kind>_<n>.json`` nor
+    ``<stem>_result_<kind>_<n>.json`` exists, so an exploratory run or a same-runtime reproduction never replaces the
+    pre-registered files or an earlier one of its kind."""
+    names = set(existing)
+    n = 1
+    while f"{stem}_evaluation_report_{kind}_{n}.json" in names or f"{stem}_result_{kind}_{n}.json" in names:
+        n += 1
+    return f"_{kind}_{n}"
+
+
+def output_suffix(stem: str, existing: Sequence[str], look: str) -> str:
+    """'' for the first pre-registered evaluation in this runtime, ``_reproduction_<n>`` for a same-runtime reproduction,
+    ``_exploratory_<n>`` for everything that did not score the fresh test."""
+    if look in (LOOK_PREREGISTERED, LOOK_RECORDED_REPRODUCTION):  # the first pre-registered scoring in this runtime
+        return ""
+    return exploratory_suffix(stem, existing, "reproduction" if look == LOOK_REPRODUCTION else "exploratory")
+
+
+def _mcc(gold: Sequence[int], pred: Sequence[int]) -> float:
+    tp = sum(1 for g, p in zip(gold, pred, strict=True) if g == 1 and p == 1)
+    tn = sum(1 for g, p in zip(gold, pred, strict=True) if g == 0 and p == 0)
+    fp = sum(1 for g, p in zip(gold, pred, strict=True) if g == 0 and p == 1)
+    fn = sum(1 for g, p in zip(gold, pred, strict=True) if g == 1 and p == 0)
+    denominator = ((tp + fp) * (tp + fn) * (tn + fp) * (tn + fn)) ** 0.5
+    return 0.0 if denominator == 0 else (tp * tn - fp * fn) / denominator
+
+
+def paired_bootstrap_mcc_difference(gold: Sequence[int], pred_a: Sequence[int], pred_b: Sequence[int], *, resamples: int = BOOTSTRAP_RESAMPLES, seed: int = BOOTSTRAP_SEED) -> dict[str, Any]:
+    """MCC(a) - MCC(b) on the same records with a paired percentile bootstrap 95% interval (records resampled with
+    replacement, both systems together). Descriptive only: it selects nothing."""
+    import random
+
+    if not (len(gold) == len(pred_a) == len(pred_b)) or not gold:
+        raise ValueError("gold and both prediction lists must be non-empty and the same length")
+    rng = random.Random(seed)
+    n = len(gold)
+    diffs = []
+    for _ in range(resamples):
+        idx = [rng.randrange(n) for _ in range(n)]
+        g = [gold[i] for i in idx]
+        diffs.append(_mcc(g, [pred_a[i] for i in idx]) - _mcc(g, [pred_b[i] for i in idx]))
+    diffs.sort()
+    return {"difference": round(_mcc(gold, pred_a) - _mcc(gold, pred_b), 4), "ci95": [round(diffs[int(0.025 * resamples)], 4), round(diffs[min(resamples - 1, int(0.975 * resamples))], 4)], "resamples": resamples, "seed": seed, "method": "paired percentile bootstrap over records"}

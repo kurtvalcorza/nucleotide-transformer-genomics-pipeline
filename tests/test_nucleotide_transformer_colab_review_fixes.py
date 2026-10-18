@@ -174,8 +174,9 @@ def test_ntp_m2_failed_rerun_returns_to_its_entry_state() -> None:
 def _section4_validation(nb: dict) -> str:
     source = next(s for s in _code(nb) if "def validate_split(name, part):" in s)
     start = source.index("BYOD_MIN_SEQUENCES = ")
-    end = source.index("disjoint = check_split_disjoint(splits)")
-    return source[start:end]
+    end = source.index("try:\n    if USE_BYOD:")
+    manifests = next(line.strip() for line in source.splitlines() if line.strip().startswith("dataset_manifests = {name: validate_split("))
+    return source[start:end] + manifests + "\n"
 
 
 @pytest.mark.parametrize("n", [8, 10, 11])
@@ -217,5 +218,5 @@ def test_ntp_m6_section3_prints_observed_values_only(nb: dict) -> None:
         assert observed in load, observed
 
 
-def test_ntp_m4_declares_spec_2_2(nb: dict) -> None:
-    assert nb["metadata"]["dimer"].get("notebook_spec", nb["metadata"]["dimer"].get("notebook_spec_version")) == "2.2"
+def test_ntp_m4_declares_spec_2_5(nb: dict) -> None:
+    assert nb["metadata"]["dimer"].get("notebook_spec", nb["metadata"]["dimer"].get("notebook_spec_version")) == "2.5"
