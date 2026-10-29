@@ -306,9 +306,11 @@ def test_byod_refusal_is_one_message_and_later_cells_skip(nb, tmp_path, monkeypa
     monkeypatch.chdir(tmp_path)
     ns = _modules(nb)
     sec4 = _cell(nb, "USE_BYOD = False  # @param").replace("USE_BYOD = False", "USE_BYOD = True").replace("BYOD_PATH = ''", "BYOD_PATH = 'missing.csv'")
-    exec(compile(sec4, "<section 4>", "exec"), ns)
+    with pytest.raises(ValueError) as caught:
+        exec(compile(sec4, "<section 4>", "exec"), ns)
     out = capsys.readouterr().out
-    assert "byod_refused" in out and "Traceback" not in out and ns["RUN_STATE"]["refused"]
+    assert caught.value._render_traceback_()[0].startswith("Refused: missing.csv: BYOD path ")
+    assert "Traceback" not in out and ns["RUN_STATE"]["refused"]
     status = json.loads((tmp_path / "outputs" / "nucleotide_transformer_run_status.json").read_text(encoding="utf-8"))
     assert status["status"].startswith("invalidated")
     exec(compile(_cell(nb, "METRICS = ('accuracy', 'mcc')"), "<section 6>", "exec"), ns)
