@@ -242,11 +242,23 @@ TEMPLATE = {
                 "BYOD_PATH = ''  # @param {{type:\"string\"}}\n"
                 "SPLIT_SEED = 42  # @param {{type:\"integer\"}}\n\n"
                 "os.makedirs('outputs', exist_ok=True)\n"
-                "RUN_STATE = {{'refused': None}}\n\n\n"
+                "RUN_STATE = {{'refused': None}}\n"
+                "# The file the learner gave, by name; '(no file)' until an upload arrives.\n"
+                "byod_label = (Path(BYOD_PATH.strip()).expanduser().name or BYOD_PATH.strip()) if BYOD_PATH.strip() else '(no file)'\n\n\n"
+                "class BYODRefusal(ValueError):\n"
+                "    \"\"\"A refused BYOD input: ``BYODRefusal(file_name, reason_and_fix)``.\"\"\"\n\n"
+                "    dimer_refusal = True\n\n"
+                "    def __init__(self, file_name, reason):\n"
+                "        super().__init__(f\"{{file_name}}: {{reason}}\")\n"
+                "        self.file_name = file_name\n"
+                "        self.reason = reason\n\n"
+                "    def _render_traceback_(self):\n"
+                "        return [f\"Refused: {{self}}\"]\n\n\n"
                 "class ByodInputError(ValueError):\n"
-                "    \"\"\"A BYOD input this cell refuses (DAT20): shown as one message, not as a traceback.\"\"\"\n\n\n"
+                "    \"\"\"A BYOD input this cell refuses (DAT20); refuse_byod turns it into one BYODRefusal line, not a traceback.\"\"\"\n\n\n"
                 'def byod_file(path, kind, suffixes=()):\n'
                 '    """BYOD path first (works on Colab, Kaggle and Jupyter); on Colab an empty path opens the upload dialog."""\n'
+                '    global byod_label\n'
                 '    if str(path).strip():\n'
                 '        source = Path(str(path).strip()).expanduser()\n'
                 '        if not source.is_file():\n'
@@ -260,6 +272,7 @@ TEMPLATE = {
                 '        if len(uploaded) != 1:\n'
                 "            raise ByodInputError(f'Upload exactly one {{kind}} (received {{len(uploaded)}} files; a cancelled dialog sends none). Run this cell again.')\n"
                 '        name, payload = next(iter(uploaded.items()))\n'
+                '        byod_label = Path(name).name\n'
                 "        source = Path('work') / Path(name).name\n"
                 '        source.parent.mkdir(parents=True, exist_ok=True)\n'
                 '        source.write_bytes(payload)\n'
@@ -271,13 +284,15 @@ TEMPLATE = {
                 "# file or record (ValueError also covers malformed CSV text). On the default path nothing is caught.\n"
                 "BYOD_REFUSALS = (ByodInputError, FileNotFoundError, UnicodeDecodeError, ValueError, TypeError)\n\n\n"
                 "def refuse_byod(exc):\n"
-                "    \"\"\"One actionable message; the run is invalidated so later cells skip, and files already on disk are labelled as earlier.\"\"\"\n"
-                "    RUN_STATE['refused'] = f'{{BYOD_PATH or \"uploaded file\"}}: {{exc}}'\n"
+                "    \"\"\"Invalidate the run (later cells skip; files already on disk are labelled as earlier), then stop the cell with one Refused: line.\"\"\"\n"
+                "    RUN_STATE['refused'] = f'{{byod_label}}: {{exc}}'\n"
                 "    for name in ('splits', 'train_records', 'val_records', 'test_records', 'fresh_records', 'dataset_manifests', 'adapt_result', 'adapted_test', 'comparison', 'protocol_check', 'grid'):\n"
                 "        globals().pop(name, None)\n"
                 "    with open('outputs/{stem}_run_status.json', 'w', encoding='utf-8') as handle:\n"
                 "        json.dump({{'status': 'invalidated: Section 4 refused the BYOD input', 'reason': RUN_STATE['refused'], 'files_in_outputs': 'from an earlier run, not from this input'}}, handle, indent=2)\n"
-                "    print({{'byod_refused': BYOD_PATH or 'uploaded file', 'reason': str(exc), 'what_to_do': 'fix the named file or record (or set USE_BYOD = False), then select this cell and choose Runtime -> Run after', 'later_sections': 'skipped until Section 4 accepts an input', 'earlier_outputs': 'files already in outputs/ are from an earlier run'}})\n\n\n"
+                "    reason = str(exc).rstrip('.')\n"
+                "    reason = reason[len(byod_label) + 2:] if reason.startswith(byod_label + ': ') else reason  # the file is named once\n"
+                "    raise BYODRefusal(byod_label, f'{{reason}}. Fix the named file or record (or set USE_BYOD = False), then select this cell and choose Runtime -> Run after; later sections skip until this cell accepts an input, and files already in outputs/ are from an earlier run.') from None\n\n\n"
                 "BYOD_MIN_SEQUENCES = 12  # the smallest dataset whose 65 / 15 / 20 split leaves MIN_RECORDS (8) training records\n\n\n"
                 "def validate_split(name, part):\n"
                 "    # Training needs MIN_RECORDS and both labels; validation and test need one record, as linear_probe/evaluate accept.\n"
@@ -852,7 +867,7 @@ TEMPLATE = {
         '- **Section 3 reports a size or SHA-256 mismatch (weights or one of the two model-code files)** — the message names the file. Delete the folder Section 3 prints as `weights_dir` and run Section 3 again; never edit the model-code files.\n'
         '- **A verdict line says the adapted model did not beat the probe or a baseline** — on the default path that is a finding worth recording (in the REL13 evaluation of record, Colab CLI T4 2026-10-17, the fresh-test MCC was adapted 0.664 against frozen probe 0.636: +0.028 with a 95% interval of −0.028 to +0.086, which includes 0, so the gain is not resolved; both beat the GC rule 0.36. The +0.06 is the exposed development test); on your data read the baselines first.\n'
         '- **CUDA out of memory in Section 7** — turn `RUN_SELECTION_GRID` off, set `TRAINED_LAYERS = 1` and run Sections 6–9 again. The run becomes **exploratory**: the fresh test is not scored and the outputs carry an `_exploratory_<n>` suffix.\n'
-        '- **Section 4 printed `byod_refused`** — the message names the file or record and the rule. Fix the file (or set `USE_BYOD = False`), select Section 4 and choose **Runtime → Run after**; until then the later cells print `skipped`, and the files already in `outputs/` are from an earlier run.\n'
+        '- **Section 4 shows `Refused: <file>: …`** — one line, no traceback, and Run all stops there; it names the file or record and the rule. Fix the file (or set `USE_BYOD = False`), select Section 4 and choose **Runtime → Run after**; until then the later cells print `skipped`, and the files already in `outputs/` are from an earlier run.\n'
         '- **BYOD: "BYOD path … does not exist" / "the upload dialog exists only in Google Colab" / "Upload exactly one …"** — set `BYOD_PATH` to a CSV in the runtime (it works on Kaggle and Jupyter); on Colab an empty path opens the dialog, and a cancelled dialog is reported as a refusal.\n'
         '- **BYOD: a `load_byod_dataset` or `validate_dataset` refusal** — it names the row and the rule (alphabet, length 12..6,000, label 0/1, duplicate id, both labels needed for training).\n\n'
         '## Glossary\n\n'
