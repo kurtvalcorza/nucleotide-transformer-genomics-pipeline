@@ -1,0 +1,72 @@
+{
+  "repo": "nucleotide-transformer-genomics-pipeline",
+  "sha": "ee441272e9385b6ef8f8735026353f5d5995d5f4",
+  "notebook": "tutorials/nucleotide_transformer_colab.ipynb",
+  "blob": "7b8ca7bfb47a6187939c95e046f2be1fcbbdf564",
+  "gpu": "T4",
+  "session": "suite-nucleotide-ee44127-1c69",
+  "started_utc": "2026-11-03T02:14:31+00:00",
+  "runner": "Colab CLI `colab exec -f` on a fresh session (not a browser Run all)",
+  "overrides": [
+    {
+      "name": "USE_BYOD",
+      "from": "False",
+      "to": "True"
+    },
+    {
+      "name": "BYOD_PATH",
+      "from": "''",
+      "to": "'/etc/hostname'"
+    }
+  ],
+  "run_copy_blob": "00baf19d3f866daba0ce6141c2b2792975156ee4",
+  "run_copy_sha256": "df6e8abf580abbf940fd0bb512a915b05e645419650bf50eefb22005617e1a8f",
+  "run_copy_note": "refusal run: the run copy is the committed notebook with the listed assignment overrides, cut immediately after the refusal cell and re-serialised (nbformat layout); input_unchanged compares against that copy",
+  "truncated_after_cell": "nucleotide_transformer-18",
+  "refusal_cell_ref": "nucleotide_transformer-18",
+  "refusal_cell_index": 8,
+  "cells_dropped": 17,
+  "code_cells_dropped": 5,
+  "original_sha256": "c8528760ac233669bc8e493ebde834119b44e2c1782e22f7814557bdc0ba123f",
+  "status": "[suite-nucleotide-ee44127-1c69] gpu-t4-s-usw4a0-26g7iz85ues7o | Hardware: T4 | Shape: Standard | Variant: GPU | Status: IDLE",
+  "exec_exit_code": 0,
+  "stopped": true,
+  "stop_verified": true,
+  "wall_s": 94.5,
+  "input_unchanged": true,
+  "executed_file": "nucleotide_transformer_colab_ee44127_colab-cli-t4_output.ipynb",
+  "log_cells": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8
+  ],
+  "log_total": 8,
+  "code_cells": 8,
+  "executed_cells": 4,
+  "errors": [
+    {
+      "cell": "nucleotide_transformer-18",
+      "ename": "IsolatedCellRefusal",
+      "evalue": "hostname: expected a labelled sequence CSV (sequence, label, optional id) ending in .csv. Fix the named file or record (or set USE_BYOD = False), then select this cell and choose Runtime -> Run after; later sections skip until this cell accepts an input, and files already in outputs/ are from an ear"
+    }
+  ],
+  "execution_counts": [],
+  "sequential": null,
+  "executed_sha256": "56d16bb3c283c2f78acb502f3da50659c6011599a9c5a4a769a22554d9d1a090",
+  "log_sequential_complete": true,
+  "mode": "expect_refusal",
+  "refusal_line": "Refused: hostname: expected a labelled sequence CSV (sequence, label, optional id) ending in .csv. Fix the named file or record (or set USE_BYOD = False), then select this cell and choose Runtime -> Run after; later sections skip until this cell accepts an input, and files already in outputs/ are from an earlier run.",
+  "halting_cell_index": 8,
+  "halting_cell_id": "nucleotide_transformer-18",
+  "error_cells": [
+    8
+  ],
+  "refusal_fail_reasons": [],
+  "refusal_ok": true,
+  "verdict": "PASS"
+}
